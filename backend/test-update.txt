@@ -1,0 +1,13 @@
+INFO | Logged in as Smoke User | Token: eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...
+
+=== CAMPAIGN TESTS ===
+PASS | Valid create (201) | Expected: 201 | Got: 201 | Campagne créée en brouillon.
+INFO | Created Campaign ID: 0390b073-392d-4757-9f61-1aadea20f80d
+
+=== CAMPAIGN UPDATE TESTS ===
+PASS | Update: No token (401) | Expected: 401 | Got: 401 | Accès refusé. Aucun token fourni.
+PASS | Update: Not Owner (403) | Expected: 403 | Got: 403 | Accès interdit. Vous n'êtes pas le créateur de cette campagne.
+PASS | Update: Invalid Amount (400) | Expected: 400 | Got: 400 | Le montant cible doit être un entier positif (en millimes).
+PASS | Update: Valid Update (200) | Expected: 200 | Got: 200 | Campagne mise à jour.
+
+=== DONE ===

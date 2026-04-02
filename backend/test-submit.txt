@@ -1,0 +1,10 @@
+PASS | Create draft (201) | Expected: 201 | Got: 201 | Campagne créée en brouillon.
+
+=== SUBMIT TESTS ===
+PASS | Submit: No token (401) | Expected: 401 | Got: 401 | Accès refusé. Aucun token fourni.
+PASS | Submit: Not owner (403) | Expected: 403 | Got: 403 | Accès interdit. Vous n'êtes pas le créateur de cette campagne.
+PASS | Submit: Valid (200) | Expected: 200 | Got: 200 | Campagne soumise pour révision par l'administrateur.
+PASS | Submit: Already pending (400) | Expected: 400 | Got: 400 | Seules les campagnes en brouillon peuvent être soumises pour révision.
+PASS | Update: Can't edit PENDING (403) | Expected: 403 | Got: 403 | Seules les campagnes en brouillon peuvent être modifiées.
+
+=== DONE ===

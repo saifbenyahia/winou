@@ -1,0 +1,10 @@
+INFO | Logged in as Smoke User | Token: eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...
+
+=== CAMPAIGN TESTS ===
+PASS | No token (401) | Expected: 401 | Got: 401 | Accès refusé. Aucun token fourni.
+PASS | Bad token (401) | Expected: 401 | Got: 401 | Token invalide.
+PASS | Missing fields (400) | Expected: 400 | Got: 400 | Tous les champs sont obligatoires (title, description, category, target_amount).
+PASS | Bad amount (400) | Expected: 400 | Got: 400 | Le montant cible doit être un entier positif (en millimes).
+PASS | Valid create (201) | Expected: 201 | Got: 201 | Campagne créée en brouillon.
+
+=== DONE ===
