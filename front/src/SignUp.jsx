@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './SignUp.css';
+import GoogleAuthButton from './components/Auth/GoogleAuthButton';
 
 const API_URL = 'http://localhost:5000';
 
@@ -86,6 +87,9 @@ const SignUp = ({ onSwitch, onHome }) => {
 
         {error && <div className="auth-message auth-error">{error}</div>}
         {success && <div className="auth-message auth-success">{success}</div>}
+
+        <GoogleAuthButton disabled={loading} label="Continuer avec Google" />
+        <div className="auth-divider">ou</div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="input-group">

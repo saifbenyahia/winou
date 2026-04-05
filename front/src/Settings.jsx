@@ -13,6 +13,7 @@ const Settings = ({ onNavigate, isAuthenticated, onLogout }) => {
 
   // Read user info from localStorage
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isGoogleOnlyUser = storedUser.auth_provider === 'google';
 
   // ── Account tab state ────────────────────────
   const [email, setEmail] = useState(storedUser.email || '');
@@ -55,7 +56,7 @@ const Settings = ({ onNavigate, isAuthenticated, onLogout }) => {
   // ── Change password (still requires current) ──
   const handleChangePassword = async () => {
     setError(''); setSaved('');
-    if (!currentPassword) { setError('Veuillez entrer votre mot de passe actuel.'); return; }
+    if (!isGoogleOnlyUser && !currentPassword) { setError('Veuillez entrer votre mot de passe actuel.'); return; }
     if (!newPassword || !confirmPassword) { setError('Veuillez remplir les deux champs du nouveau mot de passe.'); return; }
     if (newPassword !== confirmPassword) { setError('Les deux mots de passe ne correspondent pas.'); return; }
     if (newPassword.length < 6) { setError('Le nouveau mot de passe doit contenir au moins 6 caractères.'); return; }
@@ -163,11 +164,18 @@ const Settings = ({ onNavigate, isAuthenticated, onLogout }) => {
                 <label className="settings-label">Mot de passe</label>
                 {!isChangingPassword ? (
                   <button className="settings-btn-outline" onClick={() => setIsChangingPassword(true)}>
-                    Changer le mot de passe
+                    {isGoogleOnlyUser ? 'Ajouter un mot de passe' : 'Changer le mot de passe'}
                   </button>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '8px' }}>
-                    <input type="password" className="settings-input" placeholder="Mot de passe actuel" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+                    {!isGoogleOnlyUser && (
+                      <input type="password" className="settings-input" placeholder="Mot de passe actuel" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+                    )}
+                    {isGoogleOnlyUser && (
+                      <div className="settings-help-text" style={{ marginTop: 0 }}>
+                        Votre compte a ete cree avec Google. Vous pouvez definir un mot de passe local pour vous connecter aussi par email.
+                      </div>
+                    )}
                     <input type="password" className="settings-input" placeholder="Nouveau mot de passe" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
                     <input type="password" className="settings-input" placeholder="Confirmer le nouveau mot de passe" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
                     <div style={{ display: 'flex', gap: '12px' }}>

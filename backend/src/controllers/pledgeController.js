@@ -1,5 +1,7 @@
 import * as CampaignModel from "../models/campaignModel.js";
 import * as PledgeModel from "../models/pledgeModel.js";
+import * as UserModel from "../models/userModel.js";
+import { sendNewSupportNotification } from "../services/notificationService.js";
 
 export const createPledge = async (req, res) => {
   try {
@@ -42,6 +44,13 @@ export const createPledge = async (req, res) => {
       donorId: req.user.id,
       amount: normalizedAmount,
       status: "SUCCESS",
+    });
+
+    const donor = await UserModel.findById(req.user.id);
+    await sendNewSupportNotification({
+      campaign,
+      donor,
+      amount: normalizedAmount,
     });
 
     const refreshedCampaign = await CampaignModel.findById(campaign.id);

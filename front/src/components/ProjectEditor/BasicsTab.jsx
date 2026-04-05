@@ -6,7 +6,6 @@ const BasicsTab = ({ draftProject, onSaveDraft, onNavigate }) => {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [saveError, setSaveError] = useState('');
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
@@ -236,11 +235,6 @@ const BasicsTab = ({ draftProject, onSaveDraft, onNavigate }) => {
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleConfirmDelete = () => {
-    setShowDeleteModal(false);
-    if (onNavigate) onNavigate('home');
   };
 
   return (
@@ -565,107 +559,11 @@ const BasicsTab = ({ draftProject, onSaveDraft, onNavigate }) => {
       </div>
 
 
-      {/* 9. Danger Zone - Delete Project */}
-      <div style={{ marginTop: '80px', padding: '40px', background: 'rgba(255, 77, 79, 0.05)', border: '1px solid rgba(255, 77, 79, 0.2)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ color: '#ff4d4f', fontSize: '20px', margin: '0 0 8px 0' }}>Supprimer le projet</h2>
-          <p style={{ margin: 0, color: '#a1a1aa', fontSize: '14px' }}>Cette action est irréversible. Toutes les données de ce brouillon seront définitivement perdues.</p>
-        </div>
-        <button
-          className="pe-save-btn"
-          style={{ background: 'transparent', color: '#ff4d4f', borderColor: 'rgba(255, 77, 79, 0.5)' }}
-          onMouseEnter={e => { e.target.style.background = 'rgba(255, 77, 79, 0.1)'; e.target.style.borderColor = '#ff4d4f'; }}
-          onMouseLeave={e => { e.target.style.background = 'transparent'; e.target.style.borderColor = 'rgba(255, 77, 79, 0.5)'; }}
-          onClick={() => setShowDeleteModal(true)}
-        >
-          Supprimer ce brouillon
-        </button>
-      </div>
-
-
-      {showDeleteModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(4, 7, 13, 0.78)',
-            backdropFilter: 'blur(10px)',
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '24px',
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '560px',
-              background: 'linear-gradient(180deg, rgba(26, 31, 43, 0.98), rgba(14, 18, 27, 0.98))',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '24px',
-              boxShadow: '0 30px 90px rgba(0, 0, 0, 0.42)',
-              padding: '32px',
-              textAlign: 'center',
-            }}
-          >
-            <div
-              style={{
-                width: '74px',
-                height: '74px',
-                margin: '0 auto 18px',
-                borderRadius: '999px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '30px',
-                color: '#fff',
-                background: 'radial-gradient(circle at 30% 30%, rgba(255, 189, 89, 0.35), rgba(255, 77, 79, 0.22))',
-                border: '1px solid rgba(255, 128, 128, 0.24)',
-              }}
-            >
-              !
-            </div>
-            <h2 style={{ margin: '0 0 12px', color: '#fff', fontSize: '28px', fontWeight: 800 }}>
-              Supprimer ce brouillon ?
-            </h2>
-            <p style={{ margin: '0 0 10px', color: '#d4d4d8', fontSize: '16px', lineHeight: '1.7' }}>
-              Votre projet quittera l editeur et ce brouillon ne sera plus conserve.
-            </p>
-            <p style={{ margin: '0 0 28px', color: '#fca5a5', fontSize: '14px', lineHeight: '1.6' }}>
-              Cette action est definitive et ne peut pas etre annulee.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="pe-save-btn"
-                onClick={() => setShowDeleteModal(false)}
-                style={{ minWidth: '160px', background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.12)' }}
-              >
-                Continuer l edition
-              </button>
-              <button
-                type="button"
-                className="pe-save-btn"
-                onClick={handleConfirmDelete}
-                style={{
-                  minWidth: '160px',
-                  background: 'linear-gradient(135deg, #ff6b6b, #ff4d4f)',
-                  color: '#fff',
-                  borderColor: 'transparent',
-                  boxShadow: '0 12px 28px rgba(255, 77, 79, 0.28)',
-                }}
-              >
-                Oui, supprimer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };
 
 export default BasicsTab;
+
 
 

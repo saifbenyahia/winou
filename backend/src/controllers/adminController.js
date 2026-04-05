@@ -5,6 +5,10 @@
 import * as AdminModel from "../models/adminModel.js";
 import * as CampaignModel from "../models/campaignModel.js";
 import * as UserModel from "../models/userModel.js";
+import {
+  sendCampaignApprovedNotification,
+  sendCampaignRejectedNotification,
+} from "../services/notificationService.js";
 
 /**
  * GET /api/admin/stats
@@ -83,6 +87,7 @@ export const getPledges = async (_req, res) => {
 export const approveCampaign = async (req, res) => {
   try {
     const { id } = req.params;
+    const existingCampaign = await CampaignModel.findById(id);
     const campaign = await AdminModel.approveCampaign(id);
 
     if (!campaign) {
@@ -90,6 +95,10 @@ export const approveCampaign = async (req, res) => {
         success: false,
         message: "Campagne introuvable ou déjà traitée.",
       });
+    }
+
+    if (existingCampaign) {
+      await sendCampaignApprovedNotification(existingCampaign);
     }
 
     return res.status(200).json({
@@ -110,6 +119,7 @@ export const approveCampaign = async (req, res) => {
 export const rejectCampaign = async (req, res) => {
   try {
     const { id } = req.params;
+    const existingCampaign = await CampaignModel.findById(id);
     const campaign = await AdminModel.rejectCampaign(id);
 
     if (!campaign) {
@@ -117,6 +127,10 @@ export const rejectCampaign = async (req, res) => {
         success: false,
         message: "Campagne introuvable ou déjà traitée.",
       });
+    }
+
+    if (existingCampaign) {
+      await sendCampaignRejectedNotification(existingCampaign);
     }
 
     return res.status(200).json({

@@ -5,6 +5,7 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
+    "init-db": "node init-db.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js"
   },

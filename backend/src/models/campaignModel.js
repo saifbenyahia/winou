@@ -148,3 +148,21 @@ export const updateStatus = async (id, newStatus) => {
   );
   return rows[0] || null;
 };
+
+/**
+ * Delete a draft campaign owned by the given creator.
+ * @param {string} id - Campaign UUID
+ * @param {string} porteurId - Creator UUID
+ * @returns {object|null}
+ */
+export const deleteDraftByOwner = async (id, porteurId) => {
+  const { rows } = await pool.query(
+    `DELETE FROM campaigns
+     WHERE id = $1
+       AND porteur_id = $2
+       AND status = 'DRAFT'
+     RETURNING id, title, status`,
+    [id, porteurId]
+  );
+  return rows[0] || null;
+};

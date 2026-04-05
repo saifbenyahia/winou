@@ -318,3 +318,55 @@ export const getCampaignById = async (req, res) => {
     return res.status(500).json({ success: false, message: "Erreur serveur." });
   }
 };
+
+/**
+ * DELETE /api/campaigns/:id (Protected)
+ * Deletes a draft campaign owned by the authenticated user.
+ */
+export const deleteCampaign = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const campaign = await CampaignModel.findById(id);
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        message: "Campagne introuvable.",
+      });
+    }
+
+    if (campaign.porteur_id !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Acces interdit. Vous n'etes pas le createur de cette campagne.",
+      });
+    }
+
+    if (campaign.status !== "DRAFT") {
+      return res.status(400).json({
+        success: false,
+        message: "Seules les campagnes en brouillon peuvent etre supprimees.",
+      });
+    }
+
+    const deleted = await CampaignModel.deleteDraftByOwner(id, req.user.id);
+    if (!deleted) {
+      return res.status(400).json({
+        success: false,
+        message: "Impossible de supprimer ce brouillon.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Brouillon supprime avec succes.",
+      campaign: deleted,
+    });
+  } catch (error) {
+    console.error("Delete campaign error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Erreur interne du serveur.",
+    });
+  }
+};

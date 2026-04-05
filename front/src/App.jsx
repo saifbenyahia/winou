@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-ro
 const Home = React.lazy(() => import('./Home'));
 const SignIn = React.lazy(() => import('./SignIn'));
 const SignUp = React.lazy(() => import('./SignUp'));
+const GoogleAuthCallback = React.lazy(() => import('./GoogleAuthCallback'));
 const ForgotPassword = React.lazy(() => import('./ForgotPassword'));
 const Settings = React.lazy(() => import('./Settings'));
 const Profile = React.lazy(() => import('./Profile'));
@@ -30,6 +31,7 @@ function AppContent() {
   const hideFooterRoutes = [
     '/login', 
     '/register', 
+    '/auth/google/callback',
     '/forgot-password', 
     '/create/', 
     '/editor', 
@@ -71,6 +73,12 @@ function AppContent() {
       return;
     }
 
+    if (view === 'projectEditor') {
+      const campaignId = typeof payload === 'object' ? payload?.id : payload;
+      navigate(campaignId ? `/editor/${campaignId}` : '/editor');
+      return;
+    }
+
     const routeMap = {
       'home': '/',
       'signIn': '/login',
@@ -84,7 +92,6 @@ function AppContent() {
       'createProjectStep1': '/create/step1',
       'createProjectStep2': '/create/step2',
       'createProjectStep3': '/create/step3',
-      'projectEditor': '/editor',
       'adminDashboard': '/admin',
     };
 
@@ -114,6 +121,7 @@ function AppContent() {
         <Route path="/" element={<Home isAuthenticated={isAuthenticated} onNavigate={handleNavigate} onLogout={handleLogout} />} />
         <Route path="/login" element={<SignIn message={signInMessage} onSwitch={() => { setSignInMessage(''); navigate('/register'); }} onForgotPassword={() => navigate('/forgot-password')} onHome={() => navigate('/')} onLoginSuccess={(token, user) => { setIsAuthenticated(true); setSignInMessage(''); if (user.role === 'ADMIN') { navigate('/admin'); } else { navigate('/'); } }} />} />
         <Route path="/register" element={<SignUp onSwitch={() => navigate('/login')} onHome={() => navigate('/')} />} />
+        <Route path="/auth/google/callback" element={<GoogleAuthCallback onAuthSuccess={(token, user) => { setIsAuthenticated(true); setSignInMessage(''); if (user.role === 'ADMIN') { navigate('/admin'); } else { navigate('/'); } }} />} />
         <Route path="/forgot-password" element={<ForgotPassword onSwitch={() => navigate('/login')} onHome={() => navigate('/')} />} />
 
         {/* Pages principales */}
