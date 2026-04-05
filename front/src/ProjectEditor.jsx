@@ -447,6 +447,14 @@ const ProjectEditor = ({ onNavigate, draftProject, onSaveDraft }) => {
                 <p className="pe-preview-notice">
                   ⚠️ Ceci est un aperçu — le projet n'est pas encore publié.
                 </p>
+              </aside>
+            </div>
+
+          </div>
+        </main>
+      )}
+
+
       {showDeleteModal && (
         <div
           style={{
@@ -526,14 +534,6 @@ const ProjectEditor = ({ onNavigate, draftProject, onSaveDraft }) => {
           </div>
         </div>
       )}
-              </aside>
-            </div>
-
-          </div>
-        </main>
-      )}
-
-
       {showMissingMediaModal && (
         <div
           style={{
