@@ -19,6 +19,8 @@ const CreateProjectStep3 = React.lazy(() => import('./CreateProjectStep3'));
 const ProjectEditor = React.lazy(() => import('./ProjectEditor'));
 const AdminDashboard = React.lazy(() => import('./AdminDashboard'));
 const DonationPage = React.lazy(() => import('./DonationPage'));
+const PaymentSuccess = React.lazy(() => import('./PaymentSuccess'));
+const PaymentFail = React.lazy(() => import('./PaymentFail'));
 const SupportTicketsPage = React.lazy(() => import('./SupportTicketsPage'));
 const CreateSupportTicketPage = React.lazy(() => import('./CreateSupportTicketPage'));
 const SupportTicketDetailsPage = React.lazy(() => import('./SupportTicketDetailsPage'));
@@ -73,7 +75,7 @@ function AppContent() {
 
     if (view === 'donationPage') {
       const campaignId = typeof payload === 'object' ? payload?.id : payload;
-      navigate(campaignId ? `/project/${campaignId}/soutenir` : '/discover');
+      navigate(campaignId ? `/project/${campaignId}?support=1` : '/discover');
       return;
     }
 
@@ -135,6 +137,8 @@ function AppContent() {
         <Route path="/project" element={<ProjectDetails isAuthenticated={isAuthenticated} onNavigate={handleNavigate} onLogout={handleLogout} onLoginSuccess={() => setIsAuthenticated(true)} />} />
         <Route path="/project/:id" element={<ProjectDetails isAuthenticated={isAuthenticated} onNavigate={handleNavigate} onLogout={handleLogout} onLoginSuccess={() => setIsAuthenticated(true)} />} />
         <Route path="/project/:id/soutenir" element={<DonationPage isAuthenticated={isAuthenticated} onNavigate={handleNavigate} onLogout={handleLogout} onLoginSuccess={() => setIsAuthenticated(true)} />} />
+        <Route path="/payment/success" element={<PaymentSuccess isAuthenticated={isAuthenticated} onNavigate={handleNavigate} onLogout={handleLogout} />} />
+        <Route path="/payment/fail" element={<PaymentFail isAuthenticated={isAuthenticated} onNavigate={handleNavigate} onLogout={handleLogout} />} />
 
         {/* Création de projets */}
         <Route path="/start" element={<StartProject isAuthenticated={isAuthenticated} onNavigate={handleNavigate} onLogout={handleLogout} />} />

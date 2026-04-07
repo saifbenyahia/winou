@@ -2,18 +2,17 @@ import React, { useEffect, useState } from 'react';
 import './Home.css';
 import Navbar from './Navbar';
 import ProjectCard from './components/ProjectCard';
+import { buildApiUrl } from './lib/api';
+import { formatMillimesToTnd } from './utils/currency';
 
-const API_URL = 'http://localhost:5000';
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1528157777178-0062a444aeb8?w=800&q=80';
-
-const formatMoney = (amount) => `${(Number(amount || 0) / 1000).toLocaleString('fr-FR')} DT`;
 
 const resolveMediaUrl = (url) => {
   if (!url) return FALLBACK_IMAGE;
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     return url;
   }
-  return `${API_URL}${url}`;
+  return buildApiUrl(url);
 };
 
 const Home = ({ onNavigate, isAuthenticated, onLogout }) => {
@@ -31,7 +30,7 @@ const Home = ({ onNavigate, isAuthenticated, onLogout }) => {
   useEffect(() => {
     const fetchCampaigns = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/campaigns`);
+        const res = await fetch(buildApiUrl('/api/campaigns'));
         const data = await res.json();
         if (data.success) {
           setProjects(data.campaigns.slice(0, 3).map((campaign) => ({
@@ -41,7 +40,7 @@ const Home = ({ onNavigate, isAuthenticated, onLogout }) => {
             desc: campaign.description || '',
             image: resolveMediaUrl(campaign.image_url),
             funded: Number(campaign.funded_percent || 0),
-            collected: formatMoney(campaign.amount_raised || 0),
+            collected: formatMillimesToTnd(campaign.amount_raised || 0),
             daysLeft: '--',
             category: campaign.category || 'Projet',
           })));
@@ -106,13 +105,13 @@ const Home = ({ onNavigate, isAuthenticated, onLogout }) => {
               </div>
               <div className="hiw-step">
                 <div className="hiw-icon">???</div>
-                <h3>2. Fonds securises par jalons</h3>
-                <p>Votre argent est protege. Le financement est divise en plusieurs jalons de realisation clairs et definis a l avance.</p>
+                <h3>2. Paiement securise via Konnect</h3>
+                <p>Les contributeurs sont rediriges vers la page hebergee Konnect pour finaliser leur paiement avec une passerelle tunisienne reconnue.</p>
               </div>
               <div className="hiw-step">
                 <div className="hiw-icon">?</div>
-                <h3>3. Deblocage sur preuve</h3>
-                <p>Les fonds ne sont debloques au createur qu apres validation stricte des preuves d avancement du projet.</p>
+                <h3>3. Verification cote Hive.tn</h3>
+                <p>Chaque paiement est reverifie par le backend avant d etre marque comme paye et ajoute a la collecte publique de la campagne.</p>
               </div>
             </div>
           </div>

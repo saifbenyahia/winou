@@ -169,6 +169,183 @@
   box-shadow: 0 12px 32px rgba(5, 206, 120, 0.5);
 }
 
+.pd-support-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
+  margin-bottom: 18px;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(7, 13, 19, 0.78);
+  border: 1px solid rgba(12, 230, 136, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.pd-support-panel__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.pd-support-panel__header h2 {
+  margin: 4px 0 0;
+  color: #fff;
+  font-size: 20px;
+}
+
+.pd-support-panel__eyebrow {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8af7c0;
+}
+
+.pd-support-panel__chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(12, 230, 136, 0.12);
+  border: 1px solid rgba(12, 230, 136, 0.18);
+  color: #8af7c0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pd-support-panel__summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pd-support-panel__summary div {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pd-support-panel__summary span {
+  color: #a1a1aa;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pd-support-panel__summary strong {
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.pd-support-field {
+  display: grid;
+  gap: 8px;
+}
+
+.pd-support-field span {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pd-support-field input {
+  min-height: 52px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  padding: 0 16px;
+  font: inherit;
+}
+
+.pd-support-field input:focus {
+  outline: none;
+  border-color: rgba(12, 230, 136, 0.52);
+  box-shadow: 0 0 0 3px rgba(12, 230, 136, 0.12);
+}
+
+.pd-support-field small {
+  color: #8f98a3;
+  line-height: 1.5;
+}
+
+.pd-support-quick-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pd-support-chip {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d1d1d6;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.pd-support-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(12, 230, 136, 0.28);
+}
+
+.pd-support-chip.is-active {
+  background: rgba(12, 230, 136, 0.16);
+  border-color: rgba(12, 230, 136, 0.35);
+  color: #8af7c0;
+}
+
+.pd-support-feedback {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #aab1b9;
+}
+
+.pd-support-feedback.is-error {
+  color: #fca5a5;
+}
+
+.pd-support-btn {
+  width: 100%;
+  min-height: 52px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0ce688 0%, #05ce78 100%);
+  color: #04120b;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 12px 28px rgba(5, 206, 120, 0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.pd-support-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(5, 206, 120, 0.3);
+}
+
+.pd-support-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
+  box-shadow: none;
+}
+
 .pd-actions-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -676,6 +853,20 @@
 }
 
 @media (max-width: 640px) {
+  .pd-support-panel__header,
+  .pd-support-panel__summary {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .pd-support-panel__header {
+    justify-content: stretch;
+  }
+
+  .pd-support-panel__chip {
+    justify-self: flex-start;
+  }
+
   .pd-actions-row {
     grid-template-columns: 1fr 1fr;
   }

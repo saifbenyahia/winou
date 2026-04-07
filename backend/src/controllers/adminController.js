@@ -172,6 +172,12 @@ export const deleteUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Delete user error:", error);
+    if (error.code === "23503") {
+      return res.status(409).json({
+        success: false,
+        message: "Impossible de supprimer cet utilisateur car il est lie a des donations ou a des paiements existants.",
+      });
+    }
     return res.status(500).json({ success: false, message: "Erreur interne du serveur." });
   }
 };
@@ -518,6 +524,12 @@ export const deleteCampaign = async (req, res) => {
     });
   } catch (error) {
     console.error("Delete campaign error:", error);
+    if (error.code === "23503") {
+      return res.status(409).json({
+        success: false,
+        message: "Impossible de supprimer cette campagne car elle possede deja des donations ou des paiements relies.",
+      });
+    }
     return res.status(500).json({ success: false, message: "Erreur interne du serveur." });
   }
 };

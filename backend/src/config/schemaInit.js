@@ -1,5 +1,9 @@
 export const ensureRuntimeSchema = async (pool) => {
   await pool.query(`
+    CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public
+  `);
+
+  await pool.query(`
     CREATE OR REPLACE FUNCTION trigger_set_updated_at()
     RETURNS TRIGGER AS $$
     BEGIN
@@ -39,7 +43,8 @@ export const ensureRuntimeSchema = async (pool) => {
 
   await pool.query(`
     ALTER TABLE campaigns
-    ADD COLUMN IF NOT EXISTS story TEXT NULL
+    ADD COLUMN IF NOT EXISTS story TEXT NULL,
+    ADD COLUMN IF NOT EXISTS current_amount INTEGER NOT NULL DEFAULT 0
   `);
 
   await pool.query(`
@@ -74,6 +79,160 @@ export const ensureRuntimeSchema = async (pool) => {
 
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_pledges_status ON pledges (status)
+  `);
+
+  await pool.query(`
+    DO $$
+    BEGIN
+      CREATE TYPE donation_status AS ENUM ('PENDING', 'PAID', 'FAILED', 'EXPIRED', 'CANCELED');
+    EXCEPTION
+      WHEN duplicate_object THEN NULL;
+    END
+    $$;
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS donations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+      provider VARCHAR(30) NOT NULL DEFAULT 'konnect',
+      amount_millimes INTEGER NOT NULL CHECK (amount_millimes > 0),
+      currency_token VARCHAR(10) NOT NULL DEFAULT 'TND',
+      status donation_status NOT NULL DEFAULT 'PENDING',
+      provider_payment_ref TEXT NULL,
+      provider_short_id TEXT NULL,
+      provider_order_id TEXT NULL,
+      provider_status VARCHAR(80) NULL,
+      provider_payload_init JSONB NULL,
+      provider_payload_details JSONB NULL,
+      description TEXT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      paid_at TIMESTAMPTZ NULL
+    )
+  `);
+
+  await pool.query(`
+    ALTER TABLE donations
+    ADD COLUMN IF NOT EXISTS provider VARCHAR(30) DEFAULT 'konnect',
+    ADD COLUMN IF NOT EXISTS currency_token VARCHAR(10) DEFAULT 'TND',
+    ADD COLUMN IF NOT EXISTS provider_payment_ref TEXT NULL,
+    ADD COLUMN IF NOT EXISTS provider_short_id TEXT NULL,
+    ADD COLUMN IF NOT EXISTS provider_order_id TEXT NULL,
+    ADD COLUMN IF NOT EXISTS provider_payload_init JSONB NULL,
+    ADD COLUMN IF NOT EXISTS provider_payload_details JSONB NULL,
+    ADD COLUMN IF NOT EXISTS description TEXT NULL,
+    ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ NULL
+  `);
+
+  await pool.query(`
+    ALTER TABLE donations
+    ALTER COLUMN provider SET DEFAULT 'konnect',
+    ALTER COLUMN currency_token SET DEFAULT 'TND'
+  `);
+
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'donations'
+          AND column_name = 'provider_payment_id'
+      ) THEN
+        UPDATE donations
+        SET currency_token = COALESCE(currency_token, 'TND'),
+            provider_payment_ref = COALESCE(provider_payment_ref, provider_payment_id),
+            provider_order_id = COALESCE(provider_order_id, developer_tracking_id),
+            provider_payload_init = COALESCE(provider_payload_init, provider_payload_generate),
+            provider_payload_details = COALESCE(provider_payload_details, provider_payload_verify),
+            provider = COALESCE(NULLIF(provider, ''), 'konnect');
+      ELSE
+        UPDATE donations
+        SET currency_token = COALESCE(currency_token, 'TND'),
+            provider = COALESCE(NULLIF(provider, ''), 'konnect');
+      END IF;
+    END
+    $$;
+  `);
+
+  await pool.query(`
+    ALTER TABLE donations
+    ALTER COLUMN currency_token SET NOT NULL
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_donations_campaign_id
+    ON donations (campaign_id)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_donations_user_id
+    ON donations (user_id)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_donations_status
+    ON donations (status)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_donations_provider_payment_ref
+    ON donations (provider_payment_ref)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_donations_provider_order_id
+    ON donations (provider_order_id)
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_donations_provider_payment_ref_unique
+    ON donations (provider_payment_ref)
+    WHERE provider_payment_ref IS NOT NULL
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS payment_webhook_events (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      provider VARCHAR(30) NOT NULL,
+      query_params JSONB NOT NULL DEFAULT '{}'::jsonb,
+      payload JSONB NULL,
+      received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      processed BOOLEAN NOT NULL DEFAULT FALSE,
+      processing_error TEXT NULL
+    )
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_webhook_events
+    ADD COLUMN IF NOT EXISTS query_params JSONB NOT NULL DEFAULT '{}'::jsonb
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_webhook_events
+    ALTER COLUMN payload DROP NOT NULL
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_payment_webhook_events_provider_received
+    ON payment_webhook_events (provider, received_at DESC)
+  `);
+
+  await pool.query(`
+    UPDATE campaigns c
+    SET current_amount = COALESCE((
+      SELECT SUM(p.amount)
+      FROM pledges p
+      WHERE p.campaign_id = c.id
+        AND p.status = 'SUCCESS'
+    ), 0) + COALESCE((
+      SELECT SUM(d.amount_millimes)
+      FROM donations d
+      WHERE d.campaign_id = c.id
+        AND d.status = 'PAID'
+    ), 0)
   `);
 
   await pool.query(`
@@ -272,6 +431,22 @@ export const ensureRuntimeSchema = async (pool) => {
       ) THEN
         CREATE TRIGGER set_updated_at_support_tickets
         BEFORE UPDATE ON support_tickets
+        FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
+      END IF;
+    END
+    $$;
+  `);
+
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'set_updated_at_donations'
+      ) THEN
+        CREATE TRIGGER set_updated_at_donations
+        BEFORE UPDATE ON donations
         FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
       END IF;
     END

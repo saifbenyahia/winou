@@ -1,0 +1,1 @@
+const t=n=>`${(Number(n||0)/1e3).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:3})} DT`,e=n=>{if(n==null||n==="")return null;const i=String(n).trim().replace(",",".");if(!/^\d+(\.\d{1,3})?$/.test(i))return null;const r=Number(i);return Number.isFinite(r)?r:null};export{t as f,e as p};

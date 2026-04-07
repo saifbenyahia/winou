@@ -1,27 +1,29 @@
-﻿import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import './Home.css';
-import './ProjectDetails.css';
-import Navbar from './Navbar';
-import ProjectCommentsSection from './components/ProjectCommentsSection';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useParams } from "react-router-dom";
 
-const API_URL = 'http://localhost:5000';
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1528157777178-0062a444aeb8?w=1200&q=80';
+import "./Home.css";
+import "./ProjectDetails.css";
+import Navbar from "./Navbar";
+import ProjectCommentsSection from "./components/ProjectCommentsSection";
+import { buildApiUrl } from "./lib/api";
+import { savePendingKonnectPayment } from "./utils/paymentSession";
+import { formatMillimesToTnd, parseTndInput } from "./utils/currency";
 
-const formatMoney = (amount) => `${(Number(amount || 0) / 1000).toLocaleString('fr-FR')} DT`;
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1528157777178-0062a444aeb8?w=1200&q=80";
+const QUICK_SUPPORT_AMOUNTS = [10, 25, 50, 100];
 
 const resolveMediaUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
     return url;
   }
-  return `${API_URL}${url}`;
+  return buildApiUrl(url);
 };
 
 const parseRewards = (rewards) => {
   if (!rewards) return [];
   if (Array.isArray(rewards)) return rewards;
-  if (typeof rewards === 'string') {
+  if (typeof rewards === "string") {
     try {
       const parsed = JSON.parse(rewards);
       return Array.isArray(parsed) ? parsed : [];
@@ -34,21 +36,21 @@ const parseRewards = (rewards) => {
 
 const parseStory = (story) => {
   if (!story) {
-    return { blocks: [], risks: '', faqs: [] };
+    return { blocks: [], risks: "", faqs: [] };
   }
 
   let parsed = story;
-  if (typeof parsed === 'string') {
+  if (typeof parsed === "string") {
     try {
       parsed = JSON.parse(parsed);
     } catch {
-      return { blocks: [], risks: '', faqs: [] };
+      return { blocks: [], risks: "", faqs: [] };
     }
   }
 
   return {
     blocks: Array.isArray(parsed?.blocks) ? parsed.blocks : [],
-    risks: typeof parsed?.risks === 'string' ? parsed.risks : '',
+    risks: typeof parsed?.risks === "string" ? parsed.risks : "",
     faqs: Array.isArray(parsed?.faqs) ? parsed.faqs : [],
   };
 };
@@ -58,20 +60,20 @@ const hasVisibleStoryContent = (story) => {
 
   const hasBlocks = (story.blocks || []).some((block) => {
     if (!block) return false;
-    if (block.type === 'image' || block.type === 'video') {
+    if (block.type === "image" || block.type === "video") {
       return Boolean(block.content);
     }
-    return Boolean(String(block.content || '').trim());
+    return Boolean(String(block.content || "").trim());
   });
 
-  const hasRisks = Boolean(String(story.risks || '').trim());
-  const hasFaqs = (story.faqs || []).some((faq) => Boolean(String(faq?.question || faq?.answer || '').trim()));
+  const hasRisks = Boolean(String(story.risks || "").trim());
+  const hasFaqs = (story.faqs || []).some((faq) => Boolean(String(faq?.question || faq?.answer || "").trim()));
 
   return hasBlocks || hasRisks || hasFaqs;
 };
 
 const getVideoEmbedUrl = (url) => {
-  if (!url) return '';
+  if (!url) return "";
 
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
   if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
@@ -83,48 +85,60 @@ const getVideoEmbedUrl = (url) => {
 };
 
 const getStatusLabel = (status) => {
-  if (status === 'ACTIVE') return 'Active';
-  if (status === 'PENDING') return 'En attente';
-  if (status === 'DRAFT') return 'Brouillon';
-  if (status === 'REJECTED') return 'Refusee';
-  if (status === 'CLOSED') return 'Cloturee';
-  return status || 'Inconnue';
+  if (status === "ACTIVE") return "Active";
+  if (status === "PENDING") return "En attente";
+  if (status === "DRAFT") return "Brouillon";
+  if (status === "REJECTED") return "Refusee";
+  if (status === "CLOSED") return "Cloturee";
+  return status || "Inconnue";
 };
 
 const formatDate = (value) => {
-  if (!value) return 'Non disponible';
+  if (!value) return "Non disponible";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Non disponible';
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  if (Number.isNaN(date.getTime())) return "Non disponible";
+  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 };
 
 const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess }) => {
   const { id: campaignId } = useParams();
-  const [activeTab, setActiveTab] = useState('story');
+  const location = useLocation();
+  const supportCardRef = useRef(null);
+
+  const [activeTab, setActiveTab] = useState("story");
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [postLoginAction, setPostLoginAction] = useState(null);
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isSaved, setIsSaved] = useState(false);
   const [savingInProgress, setSavingInProgress] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
+  const [supportAmount, setSupportAmount] = useState("25");
+  const [supportError, setSupportError] = useState("");
+  const [supportSubmitting, setSupportSubmitting] = useState(false);
+
+  const supportRequested = useMemo(
+    () => new URLSearchParams(location.search).get("support") === "1",
+    [location.search]
+  );
 
   useEffect(() => {
     const fetchCampaign = async () => {
       if (!campaignId) {
         setLoading(false);
-        setError('Aucune campagne n a ete selectionnee.');
+        setError("Aucune campagne n a ete selectionnee.");
         return;
       }
 
       try {
-        const res = await fetch(`${API_URL}/api/campaigns/${campaignId}`);
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          setError(data.message || 'Campagne introuvable.');
+        const response = await fetch(buildApiUrl(`/api/campaigns/${campaignId}`));
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          setError(data.message || "Campagne introuvable.");
           return;
         }
 
@@ -135,9 +149,9 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
           image_url: resolveMediaUrl(data.campaign.image_url) || FALLBACK_IMAGE,
           video_url: resolveMediaUrl(data.campaign.video_url),
         });
-      } catch (err) {
-        console.error('Load campaign error:', err);
-        setError('Impossible de charger cette campagne.');
+      } catch (loadError) {
+        console.error("Load campaign error:", loadError);
+        setError("Impossible de charger cette campagne.");
       } finally {
         setLoading(false);
       }
@@ -148,29 +162,42 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
 
   useEffect(() => {
     const checkSavedStatus = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (!token || !campaignId) return;
+
       try {
-        const res = await fetch(`${API_URL}/api/saved/check/${campaignId}`, {
+        const response = await fetch(buildApiUrl(`/api/saved/check/${campaignId}`), {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const data = await res.json();
+        const data = await response.json();
         if (data.success) {
-          setIsSaved(!!data.saved);
+          setIsSaved(Boolean(data.saved));
         }
-      } catch (err) {
-        console.error('Check saved status error:', err);
+      } catch (requestError) {
+        console.error("Check saved status error:", requestError);
       }
     };
 
     checkSavedStatus();
   }, [campaignId, isAuthenticated]);
 
+  useEffect(() => {
+    if (!campaign || !supportRequested) return;
+
+    const timeout = window.setTimeout(() => {
+      supportCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+
+    return () => window.clearTimeout(timeout);
+  }, [campaign, supportRequested]);
+
   const handleSaveCampaign = async (tokenOverride) => {
     if (!campaignId) return;
 
-    const token = tokenOverride || localStorage.getItem('token');
+    const token = tokenOverride || localStorage.getItem("token");
     if (!token) {
+      setLoginError("");
+      setPostLoginAction({ type: "save" });
       setShowLoginModal(true);
       return;
     }
@@ -178,74 +205,173 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
     setSavingInProgress(true);
     try {
       if (isSaved) {
-        await fetch(`${API_URL}/api/saved/${campaignId}`, {
-          method: 'DELETE',
+        await fetch(buildApiUrl(`/api/saved/${campaignId}`), {
+          method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         });
         setIsSaved(false);
       } else {
-        await fetch(`${API_URL}/api/saved/${campaignId}`, {
-          method: 'POST',
+        await fetch(buildApiUrl(`/api/saved/${campaignId}`), {
+          method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
         setIsSaved(true);
       }
-    } catch (err) {
-      console.error('Save campaign error:', err);
+    } catch (requestError) {
+      console.error("Save campaign error:", requestError);
     } finally {
       setSavingInProgress(false);
     }
   };
 
+  const handleStartSupport = async (tokenOverride, amountOverride = null) => {
+    if (!campaign) return;
+
+    if (campaign.status !== "ACTIVE") {
+      setSupportError("Cette campagne n accepte pas de paiements pour le moment.");
+      return;
+    }
+
+    const rawAmount = amountOverride ?? supportAmount;
+    const parsedAmount = parseTndInput(rawAmount);
+    if (!parsedAmount || parsedAmount <= 0) {
+      setSupportError("Saisissez un montant valide superieur a 0 TND.");
+      return;
+    }
+
+    const token = tokenOverride || localStorage.getItem("token");
+    if (!token) {
+      setLoginError("");
+      setPostLoginAction({ type: "support", amount: rawAmount });
+      setShowLoginModal(true);
+      return;
+    }
+
+    setSupportSubmitting(true);
+    setSupportError("");
+
+    try {
+      const response = await fetch(buildApiUrl("/api/payments/konnect/init"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          campaign_id: campaign.id,
+          amount_tnd: String(parsedAmount),
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        if (response.status === 401) {
+          setPostLoginAction({ type: "support", amount: rawAmount });
+          setShowLoginModal(true);
+          setLoginError(data.message || "");
+          return;
+        }
+
+        setSupportError(data.message || "Impossible de creer la session de paiement pour le moment.");
+        return;
+      }
+
+      if (!data.pay_url) {
+        setSupportError("Konnect n a pas retourne de lien de paiement exploitable.");
+        return;
+      }
+
+      savePendingKonnectPayment({
+        paymentRef: data.payment_ref,
+        donationId: data.donation?.id || null,
+        orderId: data.donation?.order_id || null,
+        campaignId: campaign.id,
+        campaignTitle: campaign.title,
+        amountMillimes: data.donation?.amount_millimes || null,
+      });
+
+      window.location.assign(data.pay_url);
+    } catch (requestError) {
+      console.error("Create Konnect payment error:", requestError);
+      setSupportError("Une erreur reseau est survenue pendant la preparation du paiement.");
+    } finally {
+      setSupportSubmitting(false);
+    }
+  };
+
   const handleQuickLogin = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch(buildApiUrl("/api/auth/login"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
       const data = await response.json();
       if (!response.ok) {
-        setLoginError(data.message || 'Identifiants incorrects');
+        setLoginError(data.message || "Identifiants incorrects");
         return;
       }
 
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      const queuedAction = postLoginAction;
       setShowLoginModal(false);
-      setLoginError('');
+      setLoginError("");
+      setPostLoginAction(null);
+
       if (onLoginSuccess) onLoginSuccess();
-      await handleSaveCampaign(data.token);
-    } catch (err) {
-      console.error('Quick login error:', err);
-      setLoginError('Erreur de connexion serveur');
+
+      if (queuedAction?.type === "save") {
+        await handleSaveCampaign(data.token);
+        return;
+      }
+
+      if (queuedAction?.type === "support") {
+        await handleStartSupport(data.token, queuedAction.amount);
+      }
+    } catch (requestError) {
+      console.error("Quick login error:", requestError);
+      setLoginError("Erreur de connexion serveur");
     }
   };
 
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      alert('Lien de la campagne copie.');
+      alert("Lien de la campagne copie.");
     } catch {
-      alert('Impossible de copier le lien automatiquement.');
+      alert("Impossible de copier le lien automatiquement.");
     }
   };
 
   const rewardCount = campaign?.rewards?.length || 0;
-  const amountRaised = Number(campaign?.amount_raised || 0);
+  const amountRaised = Number(campaign?.amount_raised ?? campaign?.current_amount ?? 0);
   const fundedPercent = Math.max(0, Math.min(Number(campaign?.funded_percent || 0), 100));
   const backerCount = Number(campaign?.backer_count || 0);
-  const story = campaign?.story || { blocks: [], risks: '', faqs: [] };
+  const paidDonationCount = Number(campaign?.paid_donation_count || 0);
+  const parsedSupportAmount = parseTndInput(supportAmount);
+  const story = campaign?.story || { blocks: [], risks: "", faqs: [] };
   const storyBlocks = story.blocks || [];
   const storyFaqs = (story.faqs || []).filter((faq) => faq?.question || faq?.answer);
   const hasStoryContent = hasVisibleStoryContent(story);
+
+  const loginModalCopy = postLoginAction?.type === "support"
+    ? {
+        title: "Connexion requise",
+        description: "Connectez-vous pour lancer votre paiement Konnect et rattacher la contribution a votre compte Hive.tn.",
+      }
+    : {
+        title: "Connexion requise",
+        description: "Vous devez etre connecte pour enregistrer cette campagne.",
+      };
 
   if (loading) {
     return (
       <div className="project-details-wrapper">
         <Navbar onNavigate={onNavigate} isAuthenticated={isAuthenticated} onLogout={onLogout} activeTab="projectDetails" />
-        <div className="pd-main" style={{ textAlign: 'center', paddingTop: '120px' }}>
-          <h1 className="pd-title" style={{ fontSize: '32px' }}>Chargement de la campagne...</h1>
+        <div className="pd-main" style={{ textAlign: "center", paddingTop: "120px" }}>
+          <h1 className="pd-title" style={{ fontSize: "32px" }}>Chargement de la campagne...</h1>
         </div>
       </div>
     );
@@ -255,10 +381,10 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
     return (
       <div className="project-details-wrapper">
         <Navbar onNavigate={onNavigate} isAuthenticated={isAuthenticated} onLogout={onLogout} activeTab="projectDetails" />
-        <div className="pd-main" style={{ textAlign: 'center', paddingTop: '120px', maxWidth: '760px' }}>
-          <h1 className="pd-title" style={{ fontSize: '32px' }}>Campagne indisponible</h1>
-          <p className="pd-subtitle">{error || 'Cette campagne n existe pas ou n est plus accessible.'}</p>
-          <button className="pd-back-btn" style={{ maxWidth: '320px', margin: '30px auto 0' }} onClick={() => onNavigate('discover')}>
+        <div className="pd-main" style={{ textAlign: "center", paddingTop: "120px", maxWidth: "760px" }}>
+          <h1 className="pd-title" style={{ fontSize: "32px" }}>Campagne indisponible</h1>
+          <p className="pd-subtitle">{error || "Cette campagne n existe pas ou n est plus accessible."}</p>
+          <button className="pd-back-btn" style={{ maxWidth: "320px", margin: "30px auto 0" }} onClick={() => onNavigate("discover")}>
             Retour a la decouverte
           </button>
         </div>
@@ -278,7 +404,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
       <div className="pd-main">
         <div className="pd-header">
           <h1 className="pd-title">{campaign.title}</h1>
-          <p className="pd-subtitle">{campaign.description || 'Aucune description fournie pour cette campagne.'}</p>
+          <p className="pd-subtitle">{campaign.description || "Aucune description fournie pour cette campagne."}</p>
         </div>
 
         <div className="pd-hero-grid">
@@ -293,12 +419,12 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
               )}
             </div>
 
-            <div className="pd-badges" style={{ flexWrap: 'wrap' }}>
+            <div className="pd-badges" style={{ flexWrap: "wrap" }}>
               <div className="pd-badge-item">
-                <span className="pd-badge-icon">Categorie</span> {campaign.category || 'Non categorisee'}
+                <span className="pd-badge-icon">Categorie</span> {campaign.category || "Non categorisee"}
               </div>
               <div className="pd-badge-item">
-                <span className="pd-badge-icon">Porteur</span> {campaign.creator_name || 'Createur inconnu'}
+                <span className="pd-badge-icon">Porteur</span> {campaign.creator_name || "Createur inconnu"}
               </div>
               <div className="pd-badge-item">
                 <span className="pd-badge-icon">Statut</span> {getStatusLabel(campaign.status)}
@@ -312,7 +438,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
             </div>
 
             <div className="pd-stat-group">
-              <div className="pd-stat-big">{formatMoney(amountRaised)}</div>
+              <div className="pd-stat-big">{formatMillimesToTnd(amountRaised)}</div>
               <div className="pd-stat-label">montant atteint</div>
             </div>
 
@@ -322,13 +448,13 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
             </div>
 
             <div className="pd-stat-group">
-              <div className="pd-stat-big white">{formatMoney(campaign.target_amount)}</div>
+              <div className="pd-stat-big white">{formatMillimesToTnd(campaign.target_amount)}</div>
               <div className="pd-stat-label">objectif de la campagne</div>
             </div>
 
             <div className="pd-stat-group">
               <div className="pd-stat-big white">{backerCount}</div>
-              <div className="pd-stat-label">soutien{backerCount > 1 ? 's' : ''} confirme{backerCount > 1 ? 's' : ''}</div>
+              <div className="pd-stat-label">soutien{backerCount > 1 ? "s" : ""} confirme{backerCount > 1 ? "s" : ""}</div>
             </div>
 
             <div className="pd-stat-group">
@@ -336,53 +462,113 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
               <div className="pd-stat-label">date de creation</div>
             </div>
 
-            <button className="pd-back-btn" onClick={() => onNavigate('donationPage', campaign.id)}>
-              Soutenir
-            </button>
+            <div className="pd-support-panel" ref={supportCardRef}>
+              <div className="pd-support-panel__header">
+                <div>
+                  <p className="pd-support-panel__eyebrow">Paiement heberge</p>
+                  <h2>Contribuer avec Konnect</h2>
+                </div>
+                <span className="pd-support-panel__chip">TND</span>
+              </div>
+
+              <div className="pd-support-panel__summary">
+                <div>
+                  <span>Campagne</span>
+                  <strong>{campaign.title}</strong>
+                </div>
+                <div>
+                  <span>Dons Konnect payes</span>
+                  <strong>{paidDonationCount}</strong>
+                </div>
+              </div>
+
+              <label className="pd-support-field">
+                <span>Montant de soutien</span>
+                <input
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  value={supportAmount}
+                  onChange={(event) => {
+                    setSupportAmount(event.target.value);
+                    if (supportError) setSupportError("");
+                  }}
+                  placeholder="25"
+                />
+                <small>Montant en dinars tunisiens. Le debit se fait sur la page Konnect securisee.</small>
+              </label>
+
+              <div className="pd-support-quick-list">
+                {QUICK_SUPPORT_AMOUNTS.map((amount) => (
+                  <button
+                    key={amount}
+                    type="button"
+                    className={`pd-support-chip ${parsedSupportAmount === amount ? "is-active" : ""}`}
+                    onClick={() => {
+                      setSupportAmount(String(amount));
+                      if (supportError) setSupportError("");
+                    }}
+                  >
+                    {amount} TND
+                  </button>
+                ))}
+              </div>
+
+              {supportError && <p className="pd-support-feedback is-error">{supportError}</p>}
+
+              <p className="pd-support-feedback">
+                {campaign.status === "ACTIVE"
+                  ? "Paiement securise via Konnect. Votre donation n est comptabilisee qu apres verification du webhook et du statut cote serveur."
+                  : "Cette campagne ne peut pas recevoir de paiement tant qu elle n est pas active."}
+              </p>
+
+              <button
+                type="button"
+                className="pd-support-btn"
+                disabled={campaign.status !== "ACTIVE" || supportSubmitting}
+                onClick={() => handleStartSupport()}
+              >
+                {supportSubmitting ? "Redirection vers Konnect..." : "Contribuer avec Konnect"}
+              </button>
+            </div>
 
             <div className="pd-actions-row">
               <button
-                className={`pd-remind-btn ${isSaved ? 'pd-saved-active' : ''}`}
+                className={`pd-remind-btn ${isSaved ? "pd-saved-active" : ""}`}
                 disabled={savingInProgress}
-                onClick={() => {
-                  if (isAuthenticated) {
-                    handleSaveCampaign();
-                  } else {
-                    setShowLoginModal(true);
-                  }
-                }}
+                onClick={() => handleSaveCampaign()}
               >
-                {isSaved ? 'Enregistree' : 'Enregistrer'}
+                {isSaved ? "Enregistree" : "Enregistrer"}
               </button>
               <div className="pd-social-btn" onClick={handleCopyLink} role="button" tabIndex={0}>Copier</div>
             </div>
 
             <div className="pd-warning-text">
-              <strong>Statistiques mises a jour.</strong> Le montant atteint et le pourcentage progressent apres chaque soutien confirme.
+              <strong>Verification cote serveur.</strong> Hive.tn confirme chaque paiement aupres de Konnect avant de mettre a jour la collecte.
             </div>
           </div>
         </div>
       </div>
 
-      <div className="pd-layout-container" style={{ position: 'relative', zIndex: 1, boxSizing: 'border-box' }}>
+      <div className="pd-layout-container" style={{ position: "relative", zIndex: 1, boxSizing: "border-box" }}>
         <aside className="pd-sidebar-nav">
-            <div className="pd-sidebar-menu" role="tablist" aria-label="Navigation du projet">
-            <span className={`pd-tab-vertical ${activeTab === 'story' ? 'active' : ''}`} onClick={() => setActiveTab('story')} role="tab" aria-selected={activeTab === 'story'} tabIndex={0}>Histoire</span>
-            <span className={`pd-tab-vertical ${activeTab === 'rewards' ? 'active' : ''}`} onClick={() => setActiveTab('rewards')} role="tab" aria-selected={activeTab === 'rewards'} tabIndex={0}>Recompenses <span className="pd-tab-count">{rewardCount}</span></span>
-            <span className={`pd-tab-vertical ${activeTab === 'comments' ? 'active' : ''}`} onClick={() => setActiveTab('comments')} role="tab" aria-selected={activeTab === 'comments'} tabIndex={0}>Commentaires <span className="pd-tab-count">{commentCount}</span></span>
-            <span className={`pd-tab-vertical ${activeTab === 'campaign' ? 'active' : ''}`} onClick={() => setActiveTab('campaign')} role="tab" aria-selected={activeTab === 'campaign'} tabIndex={0}>Description</span>
+          <div className="pd-sidebar-menu" role="tablist" aria-label="Navigation du projet">
+            <span className={`pd-tab-vertical ${activeTab === "story" ? "active" : ""}`} onClick={() => setActiveTab("story")} role="tab" aria-selected={activeTab === "story"} tabIndex={0}>Histoire</span>
+            <span className={`pd-tab-vertical ${activeTab === "rewards" ? "active" : ""}`} onClick={() => setActiveTab("rewards")} role="tab" aria-selected={activeTab === "rewards"} tabIndex={0}>Recompenses <span className="pd-tab-count">{rewardCount}</span></span>
+            <span className={`pd-tab-vertical ${activeTab === "comments" ? "active" : ""}`} onClick={() => setActiveTab("comments")} role="tab" aria-selected={activeTab === "comments"} tabIndex={0}>Commentaires <span className="pd-tab-count">{commentCount}</span></span>
+            <span className={`pd-tab-vertical ${activeTab === "campaign" ? "active" : ""}`} onClick={() => setActiveTab("campaign")} role="tab" aria-selected={activeTab === "campaign"} tabIndex={0}>Description</span>
           </div>
         </aside>
 
         <main className="pd-sidebar-content">
-          {activeTab === 'campaign' && (
+          {activeTab === "campaign" && (
             <div>
               <h2>Description du projet</h2>
-              <p>{campaign.description || 'Aucune description fournie pour cette campagne.'}</p>
+              <p>{campaign.description || "Aucune description fournie pour cette campagne."}</p>
             </div>
           )}
 
-          {activeTab === 'story' && (
+          {activeTab === "story" && (
             hasStoryContent ? (
               <div>
                 <h2>Histoire du projet</h2>
@@ -390,7 +576,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
                   {storyBlocks.map((block, index) => {
                     if (!block) return null;
 
-                    if (block.type === 'image' && block.content) {
+                    if (block.type === "image" && block.content) {
                       return (
                         <div key={block.id || `story-image-${index}`} className="pd-story-media-card">
                           <img
@@ -402,7 +588,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
                       );
                     }
 
-                    if (block.type === 'video' && block.content) {
+                    if (block.type === "video" && block.content) {
                       return (
                         <div key={block.id || `story-video-${index}`} className="pd-story-media-card">
                           <iframe
@@ -416,21 +602,21 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
                       );
                     }
 
-                    const content = String(block.content || '').trim();
+                    const content = String(block.content || "").trim();
                     if (!content) return null;
 
-                    if (block.type === 'heading') {
+                    if (block.type === "heading") {
                       return <h3 key={block.id || `story-heading-${index}`} className="pd-story-heading">{content}</h3>;
                     }
 
-                    if (block.type === 'subheading') {
+                    if (block.type === "subheading") {
                       return <h4 key={block.id || `story-subheading-${index}`} className="pd-story-subheading">{content}</h4>;
                     }
 
-                    if (block.type === 'list') {
+                    if (block.type === "list") {
                       const items = content
-                        .split('\n')
-                        .map((item) => item.replace(/^[•*\-\s]+/, '').trim())
+                        .split("\n")
+                        .map((item) => item.replace(/^[•*\-\s]+/, "").trim())
                         .filter(Boolean);
 
                       if (items.length === 0) return null;
@@ -438,7 +624,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
                       return (
                         <ul key={block.id || `story-list-${index}`} className="pd-story-list">
                           {items.map((item, itemIndex) => (
-                            <li key={`${block.id || 'story-list'}-${itemIndex}`}>{item}</li>
+                            <li key={`${block.id || "story-list"}-${itemIndex}`}>{item}</li>
                           ))}
                         </ul>
                       );
@@ -460,9 +646,9 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
                     <h2>Foire aux questions</h2>
                     <div className="pd-faq-list">
                       {storyFaqs.map((faq, index) => (
-                        <article key={`${faq.question || 'faq'}-${index}`} className="pd-faq-card">
+                        <article key={`${faq.question || "faq"}-${index}`} className="pd-faq-card">
                           <h3 className="pd-faq-question">{faq.question || `Question ${index + 1}`}</h3>
-                          <p className="pd-faq-answer">{faq.answer || 'Reponse a venir.'}</p>
+                          <p className="pd-faq-answer">{faq.answer || "Reponse a venir."}</p>
                         </article>
                       ))}
                     </div>
@@ -477,25 +663,25 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
             )
           )}
 
-          {activeTab === 'rewards' && (
+          {activeTab === "rewards" && (
             rewardCount > 0 ? (
               <div>
                 <h2>Recompenses proposees</h2>
-                <div style={{ display: 'grid', gap: '14px' }}>
+                <div style={{ display: "grid", gap: "14px" }}>
                   {campaign.rewards.map((reward, index) => (
-                    <div key={`${reward.title || 'reward'}-${index}`} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '18px', background: 'rgba(255,255,255,0.02)' }}>
+                    <div key={`${reward.title || "reward"}-${index}`} style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", padding: "18px", background: "rgba(255,255,255,0.02)" }}>
                       {(reward.image || reward.image_url) && (
                         <img
                           src={resolveMediaUrl(reward.image || reward.image_url)}
                           alt={reward.title || `Recompense ${index + 1}`}
-                          style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', borderRadius: '10px', marginBottom: '14px' }}
+                          style={{ width: "100%", maxHeight: "220px", objectFit: "cover", borderRadius: "10px", marginBottom: "14px" }}
                         />
                       )}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', marginBottom: '8px' }}>
-                        <strong style={{ color: '#fff', fontSize: '18px' }}>{reward.title || `Recompense ${index + 1}`}</strong>
-                        <span style={{ color: '#0ce688', fontWeight: 800 }}>{reward.price ? `${reward.price} DT` : 'Montant libre'}</span>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "center", marginBottom: "8px" }}>
+                        <strong style={{ color: "#fff", fontSize: "18px" }}>{reward.title || `Recompense ${index + 1}`}</strong>
+                        <span style={{ color: "#0ce688", fontWeight: 800 }}>{reward.price ? `${reward.price} DT` : "Montant libre"}</span>
                       </div>
-                      <p style={{ margin: 0, color: '#c9d1d9', lineHeight: '1.6' }}>{reward.desc || 'Aucune description pour cette recompense.'}</p>
+                      <p style={{ margin: 0, color: "#c9d1d9", lineHeight: "1.6" }}>{reward.desc || "Aucune description pour cette recompense."}</p>
                     </div>
                   ))}
                 </div>
@@ -508,7 +694,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
             )
           )}
 
-          {activeTab === 'comments' && (
+          {activeTab === "comments" && (
             <ProjectCommentsSection
               campaignId={campaign.id}
               isAuthenticated={isAuthenticated}
@@ -520,41 +706,41 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
       </div>
 
       {showLoginModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#111', padding: '40px', borderRadius: '12px', width: '400px', maxWidth: '90%', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ color: '#fff', fontSize: '24px', margin: 0 }}>Connexion requise</h2>
-              <button onClick={() => setShowLoginModal(false)} style={{ background: 'transparent', border: 'none', color: '#a1a1aa', fontSize: '24px', cursor: 'pointer' }}>×</button>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#111", padding: "40px", borderRadius: "12px", width: "400px", maxWidth: "90%", border: "1px solid rgba(255,255,255,0.1)", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h2 style={{ color: "#fff", fontSize: "24px", margin: 0 }}>{loginModalCopy.title}</h2>
+              <button onClick={() => { setShowLoginModal(false); setPostLoginAction(null); setLoginError(""); }} style={{ background: "transparent", border: "none", color: "#a1a1aa", fontSize: "24px", cursor: "pointer" }}>×</button>
             </div>
-            <p style={{ color: '#a1a1aa', marginBottom: '30px', lineHeight: '1.5' }}>
-              Vous devez etre connecte pour enregistrer cette campagne.
+            <p style={{ color: "#a1a1aa", marginBottom: "30px", lineHeight: "1.5" }}>
+              {loginModalCopy.description}
             </p>
 
-            {loginError && <div style={{ color: '#ff4d4f', marginBottom: '20px', padding: '10px', background: 'rgba(255,77,79,0.1)', borderRadius: '6px' }}>{loginError}</div>}
+            {loginError && <div style={{ color: "#ff4d4f", marginBottom: "20px", padding: "10px", background: "rgba(255,77,79,0.1)", borderRadius: "6px" }}>{loginError}</div>}
 
             <input
               type="email"
               placeholder="Adresse e-mail"
               value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
-              style={{ width: '100%', padding: '14px', marginBottom: '15px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px', boxSizing: 'border-box' }}
+              onChange={(event) => setLoginEmail(event.target.value)}
+              style={{ width: "100%", padding: "14px", marginBottom: "15px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: "8px", boxSizing: "border-box" }}
             />
             <input
               type="password"
               placeholder="Mot de passe"
               value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-              style={{ width: '100%', padding: '14px', marginBottom: '25px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px', boxSizing: 'border-box', fontFamily: 'sans-serif' }}
+              onChange={(event) => setLoginPassword(event.target.value)}
+              style={{ width: "100%", padding: "14px", marginBottom: "25px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: "8px", boxSizing: "border-box", fontFamily: "sans-serif" }}
             />
 
             <button
               onClick={handleQuickLogin}
-              style={{ width: '100%', padding: '16px', backgroundColor: '#05ce78', color: '#111', fontWeight: '800', fontSize: '16px', border: 'none', borderRadius: '8px', cursor: 'pointer', marginBottom: '15px', display: 'flex', justifyContent: 'center' }}
+              style={{ width: "100%", padding: "16px", backgroundColor: "#05ce78", color: "#111", fontWeight: "800", fontSize: "16px", border: "none", borderRadius: "8px", cursor: "pointer", marginBottom: "15px", display: "flex", justifyContent: "center" }}
             >
               Se connecter
             </button>
-            <div style={{ textAlign: 'center', color: '#a1a1aa', fontSize: '14px' }}>
-              Pas encore de compte ? <span onClick={() => { setShowLoginModal(false); onNavigate('signUp'); }} style={{ color: '#0ce688', cursor: 'pointer' }}>S inscrire</span>
+            <div style={{ textAlign: "center", color: "#a1a1aa", fontSize: "14px" }}>
+              Pas encore de compte ? <span onClick={() => { setShowLoginModal(false); setPostLoginAction(null); onNavigate("signUp"); }} style={{ color: "#0ce688", cursor: "pointer" }}>S inscrire</span>
             </div>
           </div>
         </div>

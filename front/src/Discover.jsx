@@ -1,63 +1,64 @@
-import React, { useState, useEffect } from 'react';
-import './Home.css';
-import './Discover.css';
-import Navbar from './Navbar';
+import React, { useEffect, useState } from "react";
 
-const API_URL = 'http://localhost:5000';
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80';
+import "./Home.css";
+import "./Discover.css";
+import Navbar from "./Navbar";
+import { buildApiUrl } from "./lib/api";
+import { formatMillimesToTnd } from "./utils/currency";
 
-const formatMoney = (amount) => `${(Number(amount || 0) / 1000).toLocaleString('fr-FR')} DT`;
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80";
 
 const resolveMediaUrl = (url) => {
   if (!url) return FALLBACK_IMAGE;
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
     return url;
   }
-  return `${API_URL}${url}`;
+  return buildApiUrl(url);
 };
 
 const Discover = ({ onNavigate, isAuthenticated, onLogout }) => {
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
-  const [filterCategory, setFilterCategory] = useState('Toutes les categories');
-  const [filterSort, setFilterSort] = useState('Nouveautes');
+  const [filterCategory, setFilterCategory] = useState("Toutes les categories");
+  const [filterSort, setFilterSort] = useState("Nouveautes");
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCampaigns = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/campaigns`);
-        const data = await res.json();
+        const response = await fetch(buildApiUrl("/api/campaigns"));
+        const data = await response.json();
         if (data.success) {
           setCampaigns(data.campaigns);
         }
-      } catch (err) {
-        console.error('Failed to fetch campaigns:', err);
+      } catch (error) {
+        console.error("Failed to fetch campaigns:", error);
       } finally {
         setLoading(false);
       }
     };
+
     fetchCampaigns();
   }, []);
 
   const displayProjects = campaigns.map((campaign) => ({
     id: campaign.id,
     title: campaign.title,
-    creatorName: campaign.creator_name || 'Createur inconnu',
-    creatorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80',
+    creatorName: campaign.creator_name || "Createur inconnu",
+    creatorAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80",
     image: resolveMediaUrl(campaign.image_url),
-    fundedPercent: 0,
-    statusMessage: `${campaign.category || 'Projet'} • Objectif ${formatMoney(campaign.target_amount)}`,
-    category: campaign.category || 'Projet',
+    fundedPercent: Number(campaign.funded_percent || 0),
+    statusMessage: `${campaign.category || "Projet"} â€¢ ${formatMillimesToTnd(campaign.amount_raised || 0)} sur ${formatMillimesToTnd(campaign.target_amount)}`,
+    category: campaign.category || "Projet",
   }));
 
-  const filteredProjects = filterCategory === 'Toutes les categories'
+  const filteredProjects = filterCategory === "Toutes les categories"
     ? displayProjects
     : displayProjects.filter((project) => project.category === filterCategory);
 
   const projectsToShow = [...filteredProjects].sort((a, b) => {
-    if (filterSort === 'Popularite') return a.title.localeCompare(b.title);
-    if (filterSort === 'Fin de campagne') return a.title.localeCompare(b.title);
+    if (filterSort === "Popularite") return a.title.localeCompare(b.title);
+    if (filterSort === "Fin de campagne") return a.title.localeCompare(b.title);
     return 0;
   });
 
@@ -77,11 +78,11 @@ const Discover = ({ onNavigate, isAuthenticated, onLogout }) => {
 
             <div className="custom-dropdown-container">
               <button className="inline-dropdown-btn" onClick={() => setShowCategoryMenu(!showCategoryMenu)}>
-                {filterCategory} <span style={{ marginLeft: '8px', fontSize: '14px', color: '#0ce688' }}>{showCategoryMenu ? '?' : '?'}</span>
+                {filterCategory} <span style={{ marginLeft: "8px", fontSize: "14px", color: "#0ce688" }}>{showCategoryMenu ? "?" : "?"}</span>
               </button>
               {showCategoryMenu && (
                 <div className="custom-dropdown-menu">
-                  <div className="custom-dropdown-item" onClick={() => { setFilterCategory('Toutes les categories'); setShowCategoryMenu(false); }}>Toutes les categories</div>
+                  <div className="custom-dropdown-item" onClick={() => { setFilterCategory("Toutes les categories"); setShowCategoryMenu(false); }}>Toutes les categories</div>
                   {[...new Set(displayProjects.map((project) => project.category))].map((category) => (
                     <div key={category} className="custom-dropdown-item" onClick={() => { setFilterCategory(category); setShowCategoryMenu(false); }}>
                       {category}
@@ -95,7 +96,7 @@ const Discover = ({ onNavigate, isAuthenticated, onLogout }) => {
             <select
               className="discover-dropdown"
               value={filterSort}
-              onChange={(e) => setFilterSort(e.target.value)}
+              onChange={(event) => setFilterSort(event.target.value)}
             >
               <option>Nouveautes</option>
               <option>Popularite</option>
@@ -106,21 +107,21 @@ const Discover = ({ onNavigate, isAuthenticated, onLogout }) => {
 
         <div className="explore-results-container">
           <div className="explore-results-title">
-            Explorer <span>{loading ? '...' : `${projectsToShow.length} projets`}</span>
+            Explorer <span>{loading ? "..." : `${projectsToShow.length} projets`}</span>
           </div>
 
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '60px', color: '#a1a1aa' }}>
+            <div style={{ textAlign: "center", padding: "60px", color: "#a1a1aa" }}>
               Chargement des projets...
             </div>
           ) : projectsToShow.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px', color: '#a1a1aa' }}>
+            <div style={{ textAlign: "center", padding: "60px", color: "#a1a1aa" }}>
               Aucune campagne active disponible pour le moment.
             </div>
           ) : (
             <div className="ks-grid">
               {projectsToShow.map((project) => (
-                <div key={project.id} className="ks-card" onClick={() => onNavigate('projectDetails', project.id)}>
+                <div key={project.id} className="ks-card" onClick={() => onNavigate("projectDetails", project.id)}>
                   <div className="ks-card-image-box">
                     <img src={project.image} alt={project.title} className="ks-card-image" loading="lazy" />
                     <div className="ks-progress-line" style={{ width: `${Math.min(project.fundedPercent, 100)}%` }}></div>
@@ -133,9 +134,9 @@ const Discover = ({ onNavigate, isAuthenticated, onLogout }) => {
                         <h3 className="ks-card-title">{project.title}</h3>
                         <button
                           className="ks-bookmark-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onNavigate('projectDetails', project.id);
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onNavigate("projectDetails", project.id);
                           }}
                         >
                           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"></path></svg>
@@ -166,4 +167,3 @@ const Discover = ({ onNavigate, isAuthenticated, onLogout }) => {
 };
 
 export default Discover;
-
