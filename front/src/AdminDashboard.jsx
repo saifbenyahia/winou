@@ -1,9 +1,9 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './AdminDashboard.css';
 import AdminSupportWorkspace from './components/Support/AdminSupportWorkspace';
+import { buildApiUrl } from './lib/api';
 
-const API_URL = 'http://localhost:5000';
 const emptyEditCampaignModal = () => ({
   isOpen: false,
   campaignId: null,
@@ -31,7 +31,7 @@ const resolveMediaUrl = (url) => {
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     return url;
   }
-  return `${API_URL}${url}`;
+  return buildApiUrl(url);
 };
 
 /**
@@ -85,7 +85,7 @@ const AdminDashboard = ({ onNavigate }) => {
   // ── Fetch KPI stats ──────────────────────────
   const fetchStats = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/stats`, { headers });
+      const res = await fetch(buildApiUrl('/api/admin/stats'), { headers });
       const data = await res.json();
       if (data.success) setStats(data.stats);
       else setError(data.message);
@@ -95,7 +95,7 @@ const AdminDashboard = ({ onNavigate }) => {
   // ── Fetch pending campaigns ──────────────────
   const fetchPending = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/campaigns/pending`, { headers });
+      const res = await fetch(buildApiUrl('/api/admin/campaigns/pending'), { headers });
       const data = await res.json();
       if (data.success) setPendingCampaigns(data.campaigns);
     } catch { /* silent */ }
@@ -103,7 +103,7 @@ const AdminDashboard = ({ onNavigate }) => {
 
   const fetchAllCampaigns = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/campaigns`, { headers });
+      const res = await fetch(buildApiUrl('/api/admin/campaigns'), { headers });
       const data = await res.json();
       if (data.success) setAllCampaigns(data.campaigns);
     } catch { /* silent */ }
@@ -111,7 +111,7 @@ const AdminDashboard = ({ onNavigate }) => {
 
   const fetchPledges = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/pledges`, { headers });
+      const res = await fetch(buildApiUrl('/api/admin/pledges'), { headers });
       const data = await res.json();
       if (data.success) setPledges(data.pledges);
     } catch { /* silent */ }
@@ -120,7 +120,7 @@ const AdminDashboard = ({ onNavigate }) => {
   // ── Fetch users ──────────────────────────────
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/users`, { headers });
+      const res = await fetch(buildApiUrl('/api/admin/users'), { headers });
       const data = await res.json();
       if (data.success) setUsers(data.users);
     } catch { /* silent */ }
@@ -136,7 +136,7 @@ const AdminDashboard = ({ onNavigate }) => {
     });
 
     try {
-      const res = await fetch(`${API_URL}/api/admin/campaigns/${campaign.id}/comments`, { headers });
+      const res = await fetch(buildApiUrl(`/api/admin/campaigns/${campaign.id}/comments`), { headers });
       const data = await res.json();
 
       if (!res.ok || !data.success) {
@@ -176,7 +176,7 @@ const AdminDashboard = ({ onNavigate }) => {
     if (!deleteCommentModal.comment) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/admin/comments/${deleteCommentModal.comment.id}`, {
+      const res = await fetch(buildApiUrl(`/api/admin/comments/${deleteCommentModal.comment.id}`), {
         method: 'DELETE',
         headers,
       });
@@ -236,7 +236,7 @@ const AdminDashboard = ({ onNavigate }) => {
   // ── Approve campaign ─────────────────────────
   const handleApprove = async (id) => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/campaigns/${id}/approve`, {
+      const res = await fetch(buildApiUrl(`/api/admin/campaigns/${id}/approve`), {
         method: 'POST', headers,
       });
       const data = await res.json();
@@ -345,7 +345,7 @@ const AdminDashboard = ({ onNavigate }) => {
         const formData = new FormData();
         formData.append('file', editCampaignModal.imageFile);
 
-        const uploadRes = await fetch(`${API_URL}/api/admin/campaigns/${editCampaignModal.campaignId}/image`, {
+        const uploadRes = await fetch(buildApiUrl(`/api/admin/campaigns/${editCampaignModal.campaignId}/image`), {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -367,7 +367,7 @@ const AdminDashboard = ({ onNavigate }) => {
         const formData = new FormData();
         formData.append('file', editCampaignModal.videoFile);
 
-        const uploadRes = await fetch(`${API_URL}/api/admin/campaigns/${editCampaignModal.campaignId}/video`, {
+        const uploadRes = await fetch(buildApiUrl(`/api/admin/campaigns/${editCampaignModal.campaignId}/video`), {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -384,7 +384,7 @@ const AdminDashboard = ({ onNavigate }) => {
         nextVideoUrl = uploadData.fileUrl || nextVideoUrl;
       }
 
-      const res = await fetch(`${API_URL}/api/admin/campaigns/${editCampaignModal.campaignId}`, {
+      const res = await fetch(buildApiUrl(`/api/admin/campaigns/${editCampaignModal.campaignId}`), {
         method: 'PUT',
         headers,
         body: JSON.stringify({
@@ -421,7 +421,7 @@ const AdminDashboard = ({ onNavigate }) => {
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/api/admin/campaigns/${rejectModal.campaignId}/reject`, {
+      const res = await fetch(buildApiUrl(`/api/admin/campaigns/${rejectModal.campaignId}/reject`), {
         method: 'POST', headers,
         body: JSON.stringify({ reason: rejectModal.reason }),
       });
@@ -451,7 +451,7 @@ const AdminDashboard = ({ onNavigate }) => {
     if (!deleteCampaignModal.campaign) return;
     const campaign = deleteCampaignModal.campaign;
     try {
-      const res = await fetch(`${API_URL}/api/admin/campaigns/${campaign.id}`, {
+      const res = await fetch(buildApiUrl(`/api/admin/campaigns/${campaign.id}`), {
         method: 'DELETE', headers,
       });
       const data = await res.json();
@@ -482,7 +482,7 @@ const AdminDashboard = ({ onNavigate }) => {
     if (!deleteUserModal.user) return;
     const user = deleteUserModal.user;
     try {
-      const res = await fetch(`${API_URL}/api/admin/users/${user.id}`, {
+      const res = await fetch(buildApiUrl(`/api/admin/users/${user.id}`), {
         method: 'DELETE', headers,
       });
       const data = await res.json();
@@ -515,7 +515,7 @@ const AdminDashboard = ({ onNavigate }) => {
     const user = roleConfirmModal.user;
     const newRole = roleConfirmModal.newRole;
     try {
-      const res = await fetch(`${API_URL}/api/admin/users/${user.id}/role`, {
+      const res = await fetch(buildApiUrl(`/api/admin/users/${user.id}/role`), {
         method: 'PUT', headers,
         body: JSON.stringify({ role: newRole }),
       });
@@ -575,7 +575,7 @@ const AdminDashboard = ({ onNavigate }) => {
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/admin/users/${editUserModal.userId}`, {
+      const res = await fetch(buildApiUrl(`/api/admin/users/${editUserModal.userId}`), {
         method: 'PUT',
         headers,
         body: JSON.stringify({
@@ -635,6 +635,9 @@ const AdminDashboard = ({ onNavigate }) => {
   const activeCampaigns = stats?.activeCampaigns || 0;
   const successRate = stats?.successRate || 0;
   const totalUsers = stats?.totalUsers || 0;
+  const totalPaidDonations = stats?.totalPaidDonations || 0;
+  const totalTarget = stats?.totalTarget || 0;
+  const latestPaidDonations = stats?.latestPaidDonations || [];
   const categorySplit = stats?.categorySplit || [];
   const totalCategoryCount = categorySplit.reduce((sum, c) => sum + c.value, 0) || 1;
   const getCampaignStatusClass = (status) => {
@@ -663,16 +666,18 @@ const AdminDashboard = ({ onNavigate }) => {
   };
 
   const getPledgeStatusClass = (status) => {
-    if (status === 'SUCCESS') return 'actif';
+    if (status === 'SUCCESS' || status === 'PAID') return 'actif';
     if (status === 'PENDING') return 'attente';
-    if (status === 'FAILED') return 'refuse';
+    if (status === 'FAILED' || status === 'EXPIRED' || status === 'CANCELED') return 'refuse';
     return 'archive';
   };
 
   const formatPledgeStatus = (status) => {
-    if (status === 'SUCCESS') return 'Confirme';
+    if (status === 'SUCCESS' || status === 'PAID') return 'Confirme';
     if (status === 'PENDING') return 'En attente';
     if (status === 'FAILED') return 'Echoue';
+    if (status === 'EXPIRED') return 'Expire';
+    if (status === 'CANCELED') return 'Annule';
     return status;
   };
 
@@ -751,14 +756,14 @@ const AdminDashboard = ({ onNavigate }) => {
             <div className="fade-in">
               <div className="admin-widgets">
                 <div className="admin-card">
-                  <p className="widget-title">Fonds Totaux</p>
+                  <p className="widget-title">Montant Traite</p>
                   <p className="widget-value">{totalFunds.toLocaleString()} <span>DT</span></p>
-                  <div className="widget-trend">{stats?.totalCampaigns || 0} campagnes au total</div>
+                  <div className="widget-trend">{totalPaidDonations} donation{totalPaidDonations > 1 ? 's' : ''} payee{totalPaidDonations > 1 ? 's' : ''}</div>
                 </div>
                 <div className="admin-card">
                   <p className="widget-title">Revenus Plateforme (5%)</p>
                   <p className="widget-value">{platformRevenue.toLocaleString()} <span>DT</span></p>
-                  <div className="widget-trend">Commission Nette</div>
+                  <div className="widget-trend">Base sur les paiements verifies</div>
                 </div>
                 <div className="admin-card">
                   <p className="widget-title">Campagnes Actives</p>
@@ -824,9 +829,49 @@ const AdminDashboard = ({ onNavigate }) => {
                         <td className="cell-primary">Utilisateurs inscrits</td>
                         <td className="cell-secondary">{totalUsers}</td>
                       </tr>
+                      <tr>
+                        <td className="cell-primary">Objectifs cumules</td>
+                        <td className="cell-secondary">{totalTarget.toLocaleString()} DT</td>
+                      </tr>
+                      <tr>
+                        <td className="cell-primary">Donations payees</td>
+                        <td className="cell-secondary">{totalPaidDonations}</td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
+              </div>
+
+              <div className="admin-table-wrapper" style={{ marginTop: '24px' }}>
+                <div className="table-header-bar">
+                  <h4>Derniers paiements verifies</h4>
+                </div>
+                {latestPaidDonations.length === 0 ? (
+                  <p style={{ color: '#a1a1aa', padding: '24px 0' }}>Aucun paiement Konnect confirme pour le moment.</p>
+                ) : (
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Donateur</th>
+                        <th>Campagne</th>
+                        <th>Montant</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {latestPaidDonations.map((donation) => (
+                        <tr key={donation.id}>
+                          <td className="cell-secondary">
+                            {donation.paidAt ? new Date(donation.paidAt).toLocaleString('fr-FR') : 'Non disponible'}
+                          </td>
+                          <td className="cell-primary">{donation.donorName || 'Utilisateur inconnu'}</td>
+                          <td className="cell-primary">{donation.campaignTitle || 'Campagne inconnue'}</td>
+                          <td className="cell-primary">{Number(donation.amountTnd || 0).toLocaleString('fr-FR')} DT</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           )}
@@ -894,6 +939,7 @@ const AdminDashboard = ({ onNavigate }) => {
                       <th>Créateur</th>
                       <th>Catégorie</th>
                       <th>Objectif</th>
+                      <th>Collecte</th>
                       <th>Statut</th>
                       <th>Créée le</th>
                       <th>Actions</th>
@@ -906,6 +952,10 @@ const AdminDashboard = ({ onNavigate }) => {
                         <td className="cell-secondary">{campaign.creator_name}</td>
                         <td className="cell-secondary">{campaign.category || 'Non catégorisé'}</td>
                         <td className="cell-primary">{(campaign.target_amount / 1000).toLocaleString()} DT</td>
+                        <td>
+                          <div className="cell-primary">{(Number(campaign.current_amount || 0) / 1000).toLocaleString('fr-FR')} DT</div>
+                          <div className="cell-secondary">{campaign.paid_donation_count || 0} don{campaign.paid_donation_count > 1 ? 's' : ''} paye{campaign.paid_donation_count > 1 ? 's' : ''}</div>
+                        </td>
                         <td>
                           <span className={`status-badge ${getCampaignStatusClass(campaign.status)}`}>
                             {formatCampaignStatus(campaign.status)}
@@ -959,6 +1009,7 @@ const AdminDashboard = ({ onNavigate }) => {
                   <thead>
                     <tr>
                       <th>Date</th>
+                      <th>Source</th>
                       <th>Montant</th>
                       <th>Statut</th>
                       <th>Utilisateur</th>
@@ -970,7 +1021,11 @@ const AdminDashboard = ({ onNavigate }) => {
                     {pledges.map((pledge) => (
                       <tr key={pledge.id}>
                         <td className="cell-secondary">
-                          {pledge.created_at ? new Date(pledge.created_at).toLocaleString('fr-FR') : 'Non disponible'}
+                          {(pledge.paid_at || pledge.created_at) ? new Date(pledge.paid_at || pledge.created_at).toLocaleString('fr-FR') : 'Non disponible'}
+                        </td>
+                        <td>
+                          <div className="cell-primary">{pledge.provider === 'legacy' ? 'Legacy MVP' : (pledge.provider || 'konnect')}</div>
+                          <div className="cell-secondary">{pledge.provider_payment_ref || pledge.provider_order_id || pledge.provider_short_id || '-'}</div>
                         </td>
                         <td className="cell-primary">
                           {(Number(pledge.amount || 0) / 1000).toLocaleString('fr-FR')} DT

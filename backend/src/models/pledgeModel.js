@@ -13,13 +13,40 @@ export const createPledge = async ({ campaignId, donorId, amount, status = "SUCC
 
 export const findSupportedCampaignsByDonor = async (donorId) => {
   const { rows } = await pool.query(
-    `SELECT
+    `WITH combined_supports AS (
+       SELECT
+         p.campaign_id,
+         p.donateur_id AS user_id,
+         p.amount,
+         p.created_at
+       FROM pledges p
+       WHERE p.status = 'SUCCESS'
+
+       UNION ALL
+
+       SELECT
+         d.campaign_id,
+         d.user_id,
+         d.amount_millimes AS amount,
+         COALESCE(d.paid_at, d.created_at) AS created_at
+       FROM donations d
+       WHERE d.status = 'PAID'
+     ),
+     combined_campaign_support_counts AS (
+       SELECT
+         campaign_id,
+         COUNT(*)::int AS backer_count
+       FROM combined_supports
+       GROUP BY campaign_id
+     )
+     SELECT
        c.id,
        c.porteur_id,
        c.title,
        c.description,
        c.category,
        c.target_amount,
+       c.current_amount,
        c.status,
        c.rewards,
        c.story,
@@ -29,32 +56,24 @@ export const findSupportedCampaignsByDonor = async (donorId) => {
        c.updated_at,
        u.name AS creator_name,
        u.email AS creator_email,
-       COUNT(p.id)::int AS pledge_count,
-       COALESCE(SUM(p.amount), 0)::int AS total_contributed,
-       MAX(p.created_at) AS last_supported_at,
-       COALESCE(ps.amount_raised, 0)::int AS amount_raised,
-       COALESCE(ps.backer_count, 0)::int AS backer_count,
+       COUNT(s.campaign_id)::int AS pledge_count,
+       COALESCE(SUM(s.amount), 0)::int AS total_contributed,
+       MAX(s.created_at) AS last_supported_at,
+       c.current_amount::int AS amount_raised,
+       COALESCE(cs.backer_count, 0)::int AS backer_count,
        CASE
          WHEN c.target_amount > 0 THEN LEAST(
-           ROUND((COALESCE(ps.amount_raised, 0)::numeric / c.target_amount::numeric) * 100),
+           ROUND((c.current_amount::numeric / c.target_amount::numeric) * 100),
            100
          )::int
          ELSE 0
        END AS funded_percent
-     FROM pledges p
-     JOIN campaigns c ON c.id = p.campaign_id
+     FROM combined_supports s
+     JOIN campaigns c ON c.id = s.campaign_id
      JOIN users u ON u.id = c.porteur_id
-     LEFT JOIN (
-       SELECT
-         campaign_id,
-         COALESCE(SUM(amount), 0) AS amount_raised,
-         COUNT(*) AS backer_count
-       FROM pledges
-       WHERE status = 'SUCCESS'
-       GROUP BY campaign_id
-     ) ps ON ps.campaign_id = c.id
-     WHERE p.donateur_id = $1 AND p.status = 'SUCCESS'
-     GROUP BY c.id, u.name, u.email, ps.amount_raised, ps.backer_count
+     LEFT JOIN combined_campaign_support_counts cs ON cs.campaign_id = c.id
+     WHERE s.user_id = $1
+     GROUP BY c.id, u.name, u.email, cs.backer_count
      ORDER BY last_supported_at DESC`,
     [donorId]
   );

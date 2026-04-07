@@ -75,6 +75,21 @@ CREATE TYPE public.pledge_status AS ENUM (
 ALTER TYPE public.pledge_status OWNER TO postgres;
 
 --
+-- Name: donation_status; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.donation_status AS ENUM (
+    'PENDING',
+    'PAID',
+    'FAILED',
+    'EXPIRED',
+    'CANCELED'
+);
+
+
+ALTER TYPE public.donation_status OWNER TO postgres;
+
+--
 -- Name: user_role; Type: TYPE; Schema: public; Owner: postgres
 --
 
@@ -129,6 +144,7 @@ CREATE TABLE public.campaigns (
     image_url text,
     video_url text,
     story text,
+    current_amount integer DEFAULT 0 NOT NULL,
     CONSTRAINT campaigns_target_amount_check CHECK ((target_amount > 0))
 );
 
@@ -169,6 +185,51 @@ CREATE TABLE public.pledges (
 
 
 ALTER TABLE public.pledges OWNER TO postgres;
+
+--
+-- Name: donations; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.donations (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    campaign_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    provider character varying(30) DEFAULT 'konnect'::character varying NOT NULL,
+    amount_millimes integer NOT NULL,
+    currency_token character varying(10) DEFAULT 'TND'::character varying NOT NULL,
+    status public.donation_status DEFAULT 'PENDING'::public.donation_status NOT NULL,
+    provider_payment_ref text,
+    provider_short_id text,
+    provider_order_id text,
+    provider_status character varying(80),
+    provider_payload_init jsonb,
+    provider_payload_details jsonb,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    paid_at timestamp with time zone,
+    CONSTRAINT donations_amount_millimes_check CHECK ((amount_millimes > 0))
+);
+
+
+ALTER TABLE public.donations OWNER TO postgres;
+
+--
+-- Name: payment_webhook_events; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.payment_webhook_events (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    provider character varying(30) NOT NULL,
+    query_params jsonb DEFAULT '{}'::jsonb NOT NULL,
+    payload jsonb,
+    received_at timestamp with time zone DEFAULT now() NOT NULL,
+    processed boolean DEFAULT false NOT NULL,
+    processing_error text
+);
+
+
+ALTER TABLE public.payment_webhook_events OWNER TO postgres;
 
 --
 -- Name: rewards; Type: TABLE; Schema: public; Owner: postgres
@@ -246,6 +307,21 @@ ALTER TABLE ONLY public.milestones
 
 ALTER TABLE ONLY public.pledges
     ADD CONSTRAINT pledges_pkey PRIMARY KEY (id);
+
+--
+-- Name: donations donations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.donations
+    ADD CONSTRAINT donations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: payment_webhook_events payment_webhook_events_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payment_webhook_events
+    ADD CONSTRAINT payment_webhook_events_pkey PRIMARY KEY (id);
 
 
 --
@@ -338,6 +414,55 @@ CREATE INDEX idx_pledges_status ON public.pledges USING btree (status);
 
 
 --
+-- Name: idx_donations_campaign_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_donations_campaign_id ON public.donations USING btree (campaign_id);
+
+
+--
+-- Name: idx_donations_provider_order_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_donations_provider_order_id ON public.donations USING btree (provider_order_id);
+
+
+--
+-- Name: idx_donations_provider_payment_ref; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_donations_provider_payment_ref ON public.donations USING btree (provider_payment_ref);
+
+
+--
+-- Name: idx_donations_provider_payment_ref_unique; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX idx_donations_provider_payment_ref_unique ON public.donations USING btree (provider_payment_ref) WHERE (provider_payment_ref IS NOT NULL);
+
+
+--
+-- Name: idx_donations_status; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_donations_status ON public.donations USING btree (status);
+
+
+--
+-- Name: idx_donations_user_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_donations_user_id ON public.donations USING btree (user_id);
+
+
+--
+-- Name: idx_payment_webhook_events_provider_received; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_payment_webhook_events_provider_received ON public.payment_webhook_events USING btree (provider, received_at DESC);
+
+
+--
 -- Name: idx_rewards_campaign_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -377,6 +502,13 @@ CREATE TRIGGER set_updated_at_milestones BEFORE UPDATE ON public.milestones FOR 
 --
 
 CREATE TRIGGER set_updated_at_pledges BEFORE UPDATE ON public.pledges FOR EACH ROW EXECUTE FUNCTION public.trigger_set_updated_at();
+
+
+--
+-- Name: donations set_updated_at_donations; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER set_updated_at_donations BEFORE UPDATE ON public.donations FOR EACH ROW EXECUTE FUNCTION public.trigger_set_updated_at();
 
 
 --
@@ -423,6 +555,22 @@ ALTER TABLE ONLY public.pledges
 
 ALTER TABLE ONLY public.pledges
     ADD CONSTRAINT fk_pledges_donateur FOREIGN KEY (donateur_id) REFERENCES public.users(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: donations fk_donations_campaign; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.donations
+    ADD CONSTRAINT fk_donations_campaign FOREIGN KEY (campaign_id) REFERENCES public.campaigns(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: donations fk_donations_user; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.donations
+    ADD CONSTRAINT fk_donations_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON UPDATE CASCADE ON DELETE RESTRICT;
 
 
 --

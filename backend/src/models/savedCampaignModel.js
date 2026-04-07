@@ -36,6 +36,14 @@ export const getByUser = async (userId) => {
   const { rows } = await pool.query(
     `SELECT sc.id AS saved_id, sc.created_at AS saved_at,
             c.id, c.title, c.description, c.category, c.target_amount,
+            c.current_amount AS amount_raised,
+            CASE
+              WHEN c.target_amount > 0 THEN LEAST(
+                ROUND((c.current_amount::numeric / c.target_amount::numeric) * 100),
+                100
+              )::int
+              ELSE 0
+            END AS funded_percent,
             c.image_url, c.status, c.created_at,
             u.name AS creator_name
      FROM saved_campaigns sc
