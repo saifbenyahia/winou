@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useState, Suspense, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 
 // Lazy loading components
@@ -60,6 +60,10 @@ function AppContent() {
     },
     campaignId: null,
   });
+
+  const handleSaveDraft = useCallback((data) => {
+    setDraftProject((prev) => ({ ...prev, ...data }));
+  }, []);
 
   // Mapping des vues vers les routes URL (compatible avec onNavigate existant)
   const handleNavigate = (view, payload = '') => {
@@ -138,10 +142,10 @@ function AppContent() {
 
         {/* Création de projets */}
         <Route path="/start" element={<StartProject isAuthenticated={isAuthenticated} onNavigate={handleNavigate} onLogout={handleLogout} />} />
-        <Route path="/create/step1" element={<CreateProjectStep1 onNavigate={handleNavigate} onSaveDraft={(data) => setDraftProject(prev => ({...prev, ...data}))} draftProject={draftProject} />} />
+        <Route path="/create/step1" element={<CreateProjectStep1 onNavigate={handleNavigate} onSaveDraft={handleSaveDraft} draftProject={draftProject} />} />
         <Route path="/create/step2" element={<CreateProjectStep2 onNavigate={handleNavigate} />} />
-        <Route path="/create/step3" element={<CreateProjectStep3 onNavigate={handleNavigate} onSaveDraft={(data) => setDraftProject(prev => ({...prev, ...data}))} draftProject={draftProject} />} />
-        <Route path="/editor/:id?" element={<ProjectEditor onNavigate={handleNavigate} draftProject={draftProject} onSaveDraft={(data) => setDraftProject(prev => ({...prev, ...data}))} />} />
+        <Route path="/create/step3" element={<CreateProjectStep3 onNavigate={handleNavigate} onSaveDraft={handleSaveDraft} draftProject={draftProject} />} />
+        <Route path="/editor/:id?" element={<ProjectEditor onNavigate={handleNavigate} draftProject={draftProject} onSaveDraft={handleSaveDraft} />} />
 
         {/* Profil & paramètres */}
         <Route path="/settings" element={<Settings isAuthenticated={isAuthenticated} onNavigate={handleNavigate} onLogout={handleLogout} />} />

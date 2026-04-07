@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+﻿import React, { useRef, useState } from 'react';
 
 const API_URL = 'http://localhost:5000';
 
@@ -24,6 +24,8 @@ const BasicsTab = ({ draftProject, onSaveDraft, onNavigate }) => {
   const launchDay = draftProject?.launchDay || '';
   const launchMonth = draftProject?.launchMonth || '';
   const launchYear = draftProject?.launchYear || '';
+
+  const normalizeGoalValue = (value) => value.replace(/[^\\d]/g, '').slice(0, 9);
 
   const sanitizeDatePart = (value, maxLength) => value.replace(/\D/g, '').slice(0, maxLength);
 
@@ -511,12 +513,13 @@ const BasicsTab = ({ draftProject, onSaveDraft, onNavigate }) => {
         <div className="pe-split-right">
           <label className="pe-label">Montant visé (TND)</label>
           <input
-            type="number"
+            type="text"
             className="pe-input"
             placeholder="Ex: 5000"
+            inputMode="numeric"
             value={goal}
             onChange={e => {
-              const value = e.target.value;
+              const value = normalizeGoalValue(e.target.value);
               if (onSaveDraft) onSaveDraft({ goal: value });
             }}
           />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ï»¿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './ProjectEditor.css';
 import './CreateProject.css';
@@ -96,7 +96,7 @@ const ProjectEditor = ({ onNavigate, draftProject, onSaveDraft }) => {
     };
 
     fetchCampaign();
-  }, [id, onSaveDraft]);
+  }, [id]);
 
   const handleSaveToDatabase = async ({ showSuccessAlert = true } = {}) => {
     const token = localStorage.getItem('token');
@@ -139,7 +139,7 @@ const ProjectEditor = ({ onNavigate, draftProject, onSaveDraft }) => {
         const data = await res.json();
         if (data.success) {
             if (showSuccessAlert) {
-              alert('Enregistrement réussi !');
+              alert('Enregistrement rï¿½ussi !');
             }
             if (!currentId && data.campaign_id) {
                 onSaveDraft({
