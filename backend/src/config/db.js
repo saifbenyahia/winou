@@ -1,3 +1,4 @@
+import "./env.js";
 import pg from "pg";
 import { ensureRuntimeSchema } from "./schemaInit.js";
 const { Pool } = pg;

@@ -194,7 +194,7 @@ CREATE TABLE public.donations (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     campaign_id uuid NOT NULL,
     user_id uuid NOT NULL,
-    provider character varying(30) DEFAULT 'konnect'::character varying NOT NULL,
+    provider character varying(30) DEFAULT 'manual'::character varying NOT NULL,
     amount_millimes integer NOT NULL,
     currency_token character varying(10) DEFAULT 'TND'::character varying NOT NULL,
     status public.donation_status DEFAULT 'PENDING'::public.donation_status NOT NULL,

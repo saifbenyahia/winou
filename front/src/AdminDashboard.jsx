@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './AdminDashboard.css';
 import AdminSupportWorkspace from './components/Support/AdminSupportWorkspace';
-import { buildApiUrl } from './lib/api';
+import { buildApiUrl } from './shared/services/api.js';
 
 const emptyEditCampaignModal = () => ({
   isOpen: false,
@@ -834,7 +834,7 @@ const AdminDashboard = ({ onNavigate }) => {
                         <td className="cell-secondary">{totalTarget.toLocaleString()} DT</td>
                       </tr>
                       <tr>
-                        <td className="cell-primary">Donations payees</td>
+                        <td className="cell-primary">Soutiens archives</td>
                         <td className="cell-secondary">{totalPaidDonations}</td>
                       </tr>
                     </tbody>
@@ -844,10 +844,10 @@ const AdminDashboard = ({ onNavigate }) => {
 
               <div className="admin-table-wrapper" style={{ marginTop: '24px' }}>
                 <div className="table-header-bar">
-                  <h4>Derniers paiements verifies</h4>
+                  <h4>Derniers soutiens archives</h4>
                 </div>
                 {latestPaidDonations.length === 0 ? (
-                  <p style={{ color: '#a1a1aa', padding: '24px 0' }}>Aucun paiement Konnect confirme pour le moment.</p>
+                  <p style={{ color: '#a1a1aa', padding: '24px 0' }}>Aucun soutien archive confirme pour le moment.</p>
                 ) : (
                   <table className="admin-table">
                     <thead>
@@ -954,7 +954,7 @@ const AdminDashboard = ({ onNavigate }) => {
                         <td className="cell-primary">{(campaign.target_amount / 1000).toLocaleString()} DT</td>
                         <td>
                           <div className="cell-primary">{(Number(campaign.current_amount || 0) / 1000).toLocaleString('fr-FR')} DT</div>
-                          <div className="cell-secondary">{campaign.paid_donation_count || 0} don{campaign.paid_donation_count > 1 ? 's' : ''} paye{campaign.paid_donation_count > 1 ? 's' : ''}</div>
+                          <div className="cell-secondary">{campaign.paid_donation_count || 0} soutien{campaign.paid_donation_count > 1 ? 's' : ''} archive{campaign.paid_donation_count > 1 ? 's' : ''}</div>
                         </td>
                         <td>
                           <span className={`status-badge ${getCampaignStatusClass(campaign.status)}`}>
@@ -1024,7 +1024,13 @@ const AdminDashboard = ({ onNavigate }) => {
                           {(pledge.paid_at || pledge.created_at) ? new Date(pledge.paid_at || pledge.created_at).toLocaleString('fr-FR') : 'Non disponible'}
                         </td>
                         <td>
-                          <div className="cell-primary">{pledge.provider === 'legacy' ? 'Legacy MVP' : (pledge.provider || 'konnect')}</div>
+                          <div className="cell-primary">
+                            {pledge.provider === 'legacy'
+                              ? 'Soutien direct'
+                              : pledge.provider === 'manual'
+                                ? 'Support archive'
+                                : 'Archive'}
+                          </div>
                           <div className="cell-secondary">{pledge.provider_payment_ref || pledge.provider_order_id || pledge.provider_short_id || '-'}</div>
                         </td>
                         <td className="cell-primary">

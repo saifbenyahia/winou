@@ -4,7 +4,7 @@ import {
   formatSupportDate,
   getInitials,
   resolveMediaUrl,
-} from "../../supportUtils";
+} from "../../modules/support/utils/supportUtils.js";
 import "./SupportMessageBubble.css";
 
 const SupportMessageBubble = ({

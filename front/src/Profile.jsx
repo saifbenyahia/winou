@@ -6,8 +6,8 @@ import "./Profile.css";
 import "./Settings.css";
 import Navbar from "./Navbar";
 import ProjectCard from "./components/ProjectCard";
-import { buildApiUrl } from "./lib/api";
-import { formatMillimesToTnd } from "./utils/currency";
+import { buildApiUrl } from "./shared/services/api.js";
+import { formatMillimesToTnd } from "./shared/utils/currency.js";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1528157777178-0062a444aeb8?w=800&q=80";
 
@@ -20,6 +20,38 @@ const getStatusBadge = (status) => {
   return { bg: "rgba(0,0,0,0.6)", text: status || "Inconnu" };
 };
 
+const getCampaignLockNotice = (status) => {
+  if (status === "PENDING") {
+    return {
+      eyebrow: "Campagne en verification",
+      title: "Votre campagne est en cours d'examen.",
+      message: "Notre equipe la verifie avant publication. Vous recevrez une notification des qu'une nouvelle action sera possible.",
+    };
+  }
+
+  if (status === "ACTIVE") {
+    return {
+      eyebrow: "Campagne deja en ligne",
+      title: "Votre campagne est actuellement active.",
+      message: "Pour garantir une experience claire aux contributeurs, cette version n'est plus modifiable depuis cet espace.",
+    };
+  }
+
+  if (status === "CLOSED") {
+    return {
+      eyebrow: "Campagne terminee",
+      title: "Cette campagne est maintenant cloturee.",
+      message: "Elle reste visible dans votre espace, mais son contenu ne peut plus etre modifie.",
+    };
+  }
+
+  return {
+    eyebrow: "Modification indisponible",
+    title: "Cette campagne ne peut pas etre modifiee pour le moment.",
+    message: "Consultez son statut pour savoir quand de nouvelles modifications seront a nouveau disponibles.",
+  };
+};
+
 const Profile = ({ onNavigate, isAuthenticated, onLogout }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("created");
@@ -27,6 +59,7 @@ const Profile = ({ onNavigate, isAuthenticated, onLogout }) => {
   const [backedProjects, setBackedProjects] = useState([]);
   const [loadingCreated, setLoadingCreated] = useState(true);
   const [loadingBacked, setLoadingBacked] = useState(true);
+  const [campaignNotice, setCampaignNotice] = useState(null);
 
   const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
   const userName = storedUser.name || "Utilisateur";
@@ -190,6 +223,24 @@ const Profile = ({ onNavigate, isAuthenticated, onLogout }) => {
           </div>
         </div>
 
+        {campaignNotice && activeTab === "created" && (
+          <div className="profile-notice-card" role="status" aria-live="polite">
+            <div className="profile-notice-card__content">
+              <span className="profile-notice-card__eyebrow">{campaignNotice.eyebrow}</span>
+              <h3>{campaignNotice.title}</h3>
+              <p>{campaignNotice.message}</p>
+            </div>
+            <button
+              type="button"
+              className="profile-notice-card__close"
+              onClick={() => setCampaignNotice(null)}
+              aria-label="Fermer le message"
+            >
+              Fermer
+            </button>
+          </div>
+        )}
+
         {activeTab === "about" && (
           storedUser.bio ? (
             <div className="profile-content-empty" style={{ textAlign: "left" }}>
@@ -295,7 +346,7 @@ const Profile = ({ onNavigate, isAuthenticated, onLogout }) => {
                             if (project.dbStatus === "DRAFT" || project.dbStatus === "REJECTED") {
                               navigate(`/editor/${project.id}`);
                             } else {
-                              alert("Cette campagne ne peut plus etre modifiee car elle est soumise ou active.");
+                              setCampaignNotice(getCampaignLockNotice(project.dbStatus));
                             }
                           }}
                         >

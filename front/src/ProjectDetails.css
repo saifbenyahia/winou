@@ -319,6 +319,10 @@
   color: #fca5a5;
 }
 
+.pd-support-feedback.is-success {
+  color: #8af7c0;
+}
+
 .pd-support-btn {
   width: 100%;
   min-height: 52px;

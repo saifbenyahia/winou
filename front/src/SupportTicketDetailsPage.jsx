@@ -13,11 +13,11 @@ import {
   closeSupportTicket,
   getUserSupportTicket,
   replyToSupportTicket,
-} from "./services/supportApi";
+} from "./modules/support/services/supportApi.js";
 import {
   formatSupportDate,
   getCategoryLabel,
-} from "./supportUtils";
+} from "./modules/support/utils/supportUtils.js";
 
 const SupportTicketDetailsPage = ({ onNavigate, isAuthenticated, onLogout }) => {
   const { id } = useParams();

@@ -8,13 +8,13 @@ import {
   SupportPriorityBadge,
   SupportStatusBadge,
 } from "./components/Support/SupportBadges";
-import { listUserSupportTickets } from "./services/supportApi";
+import { listUserSupportTickets } from "./modules/support/services/supportApi.js";
 import {
   formatSupportDate,
   supportCategoryOptions,
   supportStatusOptions,
   userSupportSortOptions,
-} from "./supportUtils";
+} from "./modules/support/utils/supportUtils.js";
 
 const emptySummary = {
   total_tickets: 0,

@@ -3,8 +3,8 @@ import React, { useEffect, useState } from "react";
 import "./Home.css";
 import "./Discover.css";
 import Navbar from "./Navbar";
-import { buildApiUrl } from "./lib/api";
-import { formatMillimesToTnd } from "./utils/currency";
+import { buildApiUrl } from "./shared/services/api.js";
+import { formatMillimesToTnd } from "./shared/utils/currency.js";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80";
 

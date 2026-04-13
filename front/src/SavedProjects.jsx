@@ -4,7 +4,7 @@ import "./Home.css";
 import "./SavedProjects.css";
 import Navbar from "./Navbar";
 import ProjectCard from "./components/ProjectCard";
-import { buildApiUrl } from "./lib/api";
+import { buildApiUrl } from "./shared/services/api.js";
 
 const SavedProjects = ({ onNavigate, isAuthenticated, onLogout }) => {
   const [savedProjects, setSavedProjects] = useState([]);

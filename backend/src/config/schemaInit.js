@@ -96,7 +96,7 @@ export const ensureRuntimeSchema = async (pool) => {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE RESTRICT ON UPDATE CASCADE,
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-      provider VARCHAR(30) NOT NULL DEFAULT 'konnect',
+      provider VARCHAR(30) NOT NULL DEFAULT 'manual',
       amount_millimes INTEGER NOT NULL CHECK (amount_millimes > 0),
       currency_token VARCHAR(10) NOT NULL DEFAULT 'TND',
       status donation_status NOT NULL DEFAULT 'PENDING',
@@ -115,7 +115,7 @@ export const ensureRuntimeSchema = async (pool) => {
 
   await pool.query(`
     ALTER TABLE donations
-    ADD COLUMN IF NOT EXISTS provider VARCHAR(30) DEFAULT 'konnect',
+    ADD COLUMN IF NOT EXISTS provider VARCHAR(30) DEFAULT 'manual',
     ADD COLUMN IF NOT EXISTS currency_token VARCHAR(10) DEFAULT 'TND',
     ADD COLUMN IF NOT EXISTS provider_payment_ref TEXT NULL,
     ADD COLUMN IF NOT EXISTS provider_short_id TEXT NULL,
@@ -128,7 +128,7 @@ export const ensureRuntimeSchema = async (pool) => {
 
   await pool.query(`
     ALTER TABLE donations
-    ALTER COLUMN provider SET DEFAULT 'konnect',
+    ALTER COLUMN provider SET DEFAULT 'manual',
     ALTER COLUMN currency_token SET DEFAULT 'TND'
   `);
 
@@ -147,11 +147,17 @@ export const ensureRuntimeSchema = async (pool) => {
             provider_order_id = COALESCE(provider_order_id, developer_tracking_id),
             provider_payload_init = COALESCE(provider_payload_init, provider_payload_generate),
             provider_payload_details = COALESCE(provider_payload_details, provider_payload_verify),
-            provider = COALESCE(NULLIF(provider, ''), 'konnect');
+            provider = CASE
+              WHEN provider IS NULL OR provider = '' OR provider <> 'manual' THEN 'manual'
+              ELSE provider
+            END;
       ELSE
         UPDATE donations
         SET currency_token = COALESCE(currency_token, 'TND'),
-            provider = COALESCE(NULLIF(provider, ''), 'konnect');
+            provider = CASE
+              WHEN provider IS NULL OR provider = '' OR provider <> 'manual' THEN 'manual'
+              ELSE provider
+            END;
       END IF;
     END
     $$;
@@ -194,30 +200,7 @@ export const ensureRuntimeSchema = async (pool) => {
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS payment_webhook_events (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      provider VARCHAR(30) NOT NULL,
-      query_params JSONB NOT NULL DEFAULT '{}'::jsonb,
-      payload JSONB NULL,
-      received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      processed BOOLEAN NOT NULL DEFAULT FALSE,
-      processing_error TEXT NULL
-    )
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_webhook_events
-    ADD COLUMN IF NOT EXISTS query_params JSONB NOT NULL DEFAULT '{}'::jsonb
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_webhook_events
-    ALTER COLUMN payload DROP NOT NULL
-  `);
-
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_payment_webhook_events_provider_received
-    ON payment_webhook_events (provider, received_at DESC)
+    DROP TABLE IF EXISTS payment_webhook_events
   `);
 
   await pool.query(`

@@ -6,11 +6,11 @@ import SupportCenterLayout from "./components/Support/SupportCenterLayout";
 import {
   createSupportTicket,
   getSupportCampaignChoices,
-} from "./services/supportApi";
+} from "./modules/support/services/supportApi.js";
 import {
   supportCategoryOptions,
   supportPriorityOptions,
-} from "./supportUtils";
+} from "./modules/support/utils/supportUtils.js";
 
 const CreateSupportTicketPage = ({ onNavigate, isAuthenticated, onLogout }) => {
   const navigate = useNavigate();

@@ -5,7 +5,8 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
-    "init-db": "node init-db.js",
+    "init-db": "node scripts/database/init-db.js",
+    "admin:upsert": "node scripts/admin/upsert-admin.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js"
   },

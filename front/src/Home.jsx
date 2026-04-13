@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import './Home.css';
 import Navbar from './Navbar';
 import ProjectCard from './components/ProjectCard';
-import { buildApiUrl } from './lib/api';
-import { formatMillimesToTnd } from './utils/currency';
+import { buildApiUrl } from './shared/services/api.js';
+import { formatMillimesToTnd } from './shared/utils/currency.js';
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1528157777178-0062a444aeb8?w=800&q=80';
 
@@ -105,13 +105,13 @@ const Home = ({ onNavigate, isAuthenticated, onLogout }) => {
               </div>
               <div className="hiw-step">
                 <div className="hiw-icon">???</div>
-                <h3>2. Paiement securise via Konnect</h3>
-                <p>Les contributeurs sont rediriges vers la page hebergee Konnect pour finaliser leur paiement avec une passerelle tunisienne reconnue.</p>
+                <h3>2. Soutien confirme sur Hive.tn</h3>
+                <p>Chaque contribution est enregistree directement sur la plateforme pour soutenir rapidement les createurs et faire progresser la collecte.</p>
               </div>
               <div className="hiw-step">
                 <div className="hiw-icon">?</div>
-                <h3>3. Verification cote Hive.tn</h3>
-                <p>Chaque paiement est reverifie par le backend avant d etre marque comme paye et ajoute a la collecte publique de la campagne.</p>
+                <h3>3. Collecte mise a jour instantanement</h3>
+                <p>Le montant atteint, le pourcentage de progression et les soutiens confirmes sont rafraichis aussitot sur la campagne.</p>
               </div>
             </div>
           </div>

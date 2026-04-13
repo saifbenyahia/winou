@@ -5,9 +5,8 @@ import "./Home.css";
 import "./ProjectDetails.css";
 import Navbar from "./Navbar";
 import ProjectCommentsSection from "./components/ProjectCommentsSection";
-import { buildApiUrl } from "./lib/api";
-import { savePendingKonnectPayment } from "./utils/paymentSession";
-import { formatMillimesToTnd, parseTndInput } from "./utils/currency";
+import { buildApiUrl } from "./shared/services/api.js";
+import { formatMillimesToTnd, parseTndInput } from "./shared/utils/currency.js";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1528157777178-0062a444aeb8?w=1200&q=80";
 const QUICK_SUPPORT_AMOUNTS = [10, 25, 50, 100];
@@ -54,6 +53,14 @@ const parseStory = (story) => {
     faqs: Array.isArray(parsed?.faqs) ? parsed.faqs : [],
   };
 };
+
+const normalizeCampaign = (campaign) => ({
+  ...campaign,
+  rewards: parseRewards(campaign?.rewards),
+  story: parseStory(campaign?.story),
+  image_url: resolveMediaUrl(campaign?.image_url) || FALLBACK_IMAGE,
+  video_url: resolveMediaUrl(campaign?.video_url),
+});
 
 const hasVisibleStoryContent = (story) => {
   if (!story) return false;
@@ -119,6 +126,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
   const [commentCount, setCommentCount] = useState(0);
   const [supportAmount, setSupportAmount] = useState("25");
   const [supportError, setSupportError] = useState("");
+  const [supportSuccess, setSupportSuccess] = useState("");
   const [supportSubmitting, setSupportSubmitting] = useState(false);
 
   const supportRequested = useMemo(
@@ -142,13 +150,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
           return;
         }
 
-        setCampaign({
-          ...data.campaign,
-          rewards: parseRewards(data.campaign.rewards),
-          story: parseStory(data.campaign.story),
-          image_url: resolveMediaUrl(data.campaign.image_url) || FALLBACK_IMAGE,
-          video_url: resolveMediaUrl(data.campaign.video_url),
-        });
+        setCampaign(normalizeCampaign(data.campaign));
       } catch (loadError) {
         console.error("Load campaign error:", loadError);
         setError("Impossible de charger cette campagne.");
@@ -228,7 +230,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
     if (!campaign) return;
 
     if (campaign.status !== "ACTIVE") {
-      setSupportError("Cette campagne n accepte pas de paiements pour le moment.");
+      setSupportError("Cette campagne n accepte pas de soutiens pour le moment.");
       return;
     }
 
@@ -249,9 +251,10 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
 
     setSupportSubmitting(true);
     setSupportError("");
+    setSupportSuccess("");
 
     try {
-      const response = await fetch(buildApiUrl("/api/payments/konnect/init"), {
+      const response = await fetch(buildApiUrl("/api/pledges"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -272,28 +275,19 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
           return;
         }
 
-        setSupportError(data.message || "Impossible de creer la session de paiement pour le moment.");
+        setSupportError(data.message || "Impossible d enregistrer votre soutien pour le moment.");
         return;
       }
 
-      if (!data.pay_url) {
-        setSupportError("Konnect n a pas retourne de lien de paiement exploitable.");
-        return;
+      if (data.campaign) {
+        setCampaign(normalizeCampaign(data.campaign));
       }
 
-      savePendingKonnectPayment({
-        paymentRef: data.payment_ref,
-        donationId: data.donation?.id || null,
-        orderId: data.donation?.order_id || null,
-        campaignId: campaign.id,
-        campaignTitle: campaign.title,
-        amountMillimes: data.donation?.amount_millimes || null,
-      });
-
-      window.location.assign(data.pay_url);
+      setSupportSuccess("Merci ! Votre soutien a bien ete enregistre sur cette campagne.");
+      setSupportAmount("");
     } catch (requestError) {
-      console.error("Create Konnect payment error:", requestError);
-      setSupportError("Une erreur reseau est survenue pendant la preparation du paiement.");
+      console.error("Create support error:", requestError);
+      setSupportError("Une erreur reseau est survenue pendant l enregistrement de votre soutien.");
     } finally {
       setSupportSubmitting(false);
     }
@@ -349,7 +343,6 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
   const amountRaised = Number(campaign?.amount_raised ?? campaign?.current_amount ?? 0);
   const fundedPercent = Math.max(0, Math.min(Number(campaign?.funded_percent || 0), 100));
   const backerCount = Number(campaign?.backer_count || 0);
-  const paidDonationCount = Number(campaign?.paid_donation_count || 0);
   const parsedSupportAmount = parseTndInput(supportAmount);
   const story = campaign?.story || { blocks: [], risks: "", faqs: [] };
   const storyBlocks = story.blocks || [];
@@ -359,7 +352,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
   const loginModalCopy = postLoginAction?.type === "support"
     ? {
         title: "Connexion requise",
-        description: "Connectez-vous pour lancer votre paiement Konnect et rattacher la contribution a votre compte Hive.tn.",
+        description: "Connectez-vous pour enregistrer votre soutien et le rattacher a votre compte Hive.tn.",
       }
     : {
         title: "Connexion requise",
@@ -465,8 +458,8 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
             <div className="pd-support-panel" ref={supportCardRef}>
               <div className="pd-support-panel__header">
                 <div>
-                  <p className="pd-support-panel__eyebrow">Paiement heberge</p>
-                  <h2>Contribuer avec Konnect</h2>
+                  <p className="pd-support-panel__eyebrow">Soutien direct</p>
+                  <h2>Soutenir cette campagne</h2>
                 </div>
                 <span className="pd-support-panel__chip">TND</span>
               </div>
@@ -477,8 +470,8 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
                   <strong>{campaign.title}</strong>
                 </div>
                 <div>
-                  <span>Dons Konnect payes</span>
-                  <strong>{paidDonationCount}</strong>
+                  <span>Soutiens confirmes</span>
+                  <strong>{backerCount}</strong>
                 </div>
               </div>
 
@@ -492,10 +485,11 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
                   onChange={(event) => {
                     setSupportAmount(event.target.value);
                     if (supportError) setSupportError("");
+                    if (supportSuccess) setSupportSuccess("");
                   }}
                   placeholder="25"
                 />
-                <small>Montant en dinars tunisiens. Le debit se fait sur la page Konnect securisee.</small>
+                <small>Montant en dinars tunisiens. Votre soutien est enregistre immediatement sur Hive.tn.</small>
               </label>
 
               <div className="pd-support-quick-list">
@@ -507,6 +501,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
                     onClick={() => {
                       setSupportAmount(String(amount));
                       if (supportError) setSupportError("");
+                      if (supportSuccess) setSupportSuccess("");
                     }}
                   >
                     {amount} TND
@@ -515,11 +510,12 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
               </div>
 
               {supportError && <p className="pd-support-feedback is-error">{supportError}</p>}
+              {supportSuccess && <p className="pd-support-feedback is-success">{supportSuccess}</p>}
 
               <p className="pd-support-feedback">
                 {campaign.status === "ACTIVE"
-                  ? "Paiement securise via Konnect. Votre donation n est comptabilisee qu apres verification du webhook et du statut cote serveur."
-                  : "Cette campagne ne peut pas recevoir de paiement tant qu elle n est pas active."}
+                  ? "Chaque soutien confirme met a jour la collecte de la campagne et reste visible dans votre profil."
+                  : "Cette campagne ne peut pas recevoir de soutien tant qu elle n est pas active."}
               </p>
 
               <button
@@ -528,7 +524,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
                 disabled={campaign.status !== "ACTIVE" || supportSubmitting}
                 onClick={() => handleStartSupport()}
               >
-                {supportSubmitting ? "Redirection vers Konnect..." : "Contribuer avec Konnect"}
+                {supportSubmitting ? "Enregistrement du soutien..." : "Soutenir maintenant"}
               </button>
             </div>
 
@@ -544,7 +540,7 @@ const ProjectDetails = ({ onNavigate, isAuthenticated, onLogout, onLoginSuccess 
             </div>
 
             <div className="pd-warning-text">
-              <strong>Verification cote serveur.</strong> Hive.tn confirme chaque paiement aupres de Konnect avant de mettre a jour la collecte.
+              <strong>Soutien confirme.</strong> Votre contribution est rattachee a votre compte Hive.tn et met a jour la collecte de la campagne.
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import {
   getCategoryLabel,
   getPriorityMeta,
   getStatusMeta,
-} from "../../supportUtils";
+} from "../../modules/support/utils/supportUtils.js";
 import "./SupportBadges.css";
 
 export const SupportStatusBadge = ({ status }) => {

@@ -14,7 +14,7 @@ import {
   listAdminSupportTickets,
   replyToAdminSupportTicket,
   updateAdminSupportTicket,
-} from "../../services/supportApi";
+} from "../../modules/support/services/supportApi.js";
 import {
   adminSupportSortOptions,
   formatSupportDate,
@@ -23,7 +23,7 @@ import {
   supportCategoryOptions,
   supportPriorityOptions,
   supportStatusOptions,
-} from "../../supportUtils";
+} from "../../modules/support/utils/supportUtils.js";
 import "../../SupportShared.css";
 import "./AdminSupportWorkspace.css";
 
